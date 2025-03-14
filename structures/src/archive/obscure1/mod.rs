@@ -1,13 +1,42 @@
-use binrw::binrw;
+use binrw::{BinResult, BinWrite, Endian, binrw};
 
-use crate::utils;
+use crate::utils::{self, DummyCrc32Writer};
+
+#[binrw]
+#[derive(Debug)]
+pub struct HvpArchive {
+    pub header: Header,
+    #[br(if(header.minor_version == 1))]
+    pub checksums: Option<Crc32>,
+    #[br(count = header.root_count)]
+    pub entries: Vec<Entry>,
+}
+
+impl HvpArchive {
+    // FIXME: improve this function
+    pub fn update_checksums(&mut self, endian: Endian) -> BinResult<()> {
+        let Some(checksums) = &mut self.checksums else {
+            return Ok(());
+        };
+
+        let mut writer = DummyCrc32Writer::new();
+        self.header.write_options(&mut writer, endian, ())?;
+        checksums.header = writer.checksum();
+
+        let mut writer = DummyCrc32Writer::new();
+        self.entries.write_options(&mut writer, endian, ())?;
+        checksums.entries = writer.checksum();
+
+        Ok(())
+    }
+}
 
 #[binrw]
 #[brw(magic = b"HV PackFile\0")]
 #[derive(Debug)]
-pub struct HvpArchive {
-    pub version: u16,
-    have_unknown_section: u16,
+pub struct Header {
+    pub major_version: u16,
+    pub minor_version: u16,
     #[br(assert(root_count > 0, "invalid archive, not a hvp file"))]
     pub root_count: u32,
     #[br(assert(all_count > 0, "invalid archive, not a hvp file"))]
@@ -16,10 +45,13 @@ pub struct HvpArchive {
     pub file_count: u32,
     #[br(assert(file_count > 0, "invalid archive, not a hvp file"))]
     pub data_offset: u32,
-    #[br(if(have_unknown_section == 1))]
-    pub extra_info: Option<[u8; 8]>,
-    #[br(count = root_count)]
-    pub entries: Vec<Entry>,
+}
+
+#[binrw]
+#[derive(Debug)]
+pub struct Crc32 {
+    pub header: u32,
+    pub entries: u32,
 }
 
 #[binrw]

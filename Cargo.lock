@@ -293,6 +293,7 @@ name = "structures"
 version = "0.1.0"
 dependencies = [
  "binrw",
+ "crc32fast",
 ]
 
 [[package]]

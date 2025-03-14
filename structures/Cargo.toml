@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 binrw.workspace = true
+crc32fast = "1.4"

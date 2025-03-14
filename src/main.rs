@@ -106,9 +106,9 @@ fn main() -> anyhow::Result<()> {
                 .context("failed to load hvp archive")?;
 
             println!("[+] Loaded hvp archive");
-            println!(" - root files/dirs: {}", archive.root_count);
-            println!(" - all files/folders: {}", archive.all_count);
-            println!(" - files: {}", archive.file_count);
+            println!(" - root files/dirs: {}", archive.header.root_count);
+            println!(" - all files/folders: {}", archive.header.all_count);
+            println!(" - files: {}", archive.header.file_count);
 
             // starting the export process
             let mut extractor = Extractor {
@@ -163,9 +163,9 @@ fn main() -> anyhow::Result<()> {
                 .context("failed to get reader position")?;
 
             println!("[+] Loaded hvp archive");
-            println!(" - root files/dirs: {}", archive.root_count);
-            println!(" - all files/folders: {}", archive.all_count);
-            println!(" - files: {}", archive.file_count);
+            println!(" - root files/dirs: {}", archive.header.root_count);
+            println!(" - all files/folders: {}", archive.header.all_count);
+            println!(" - files: {}", archive.header.file_count);
 
             let mut out_file = File::create(&output).context("failed to create output file")?;
 
@@ -195,6 +195,11 @@ fn main() -> anyhow::Result<()> {
                 .writer
                 .seek(SeekFrom::Start(0))
                 .context("failed to seek to start of writer")?;
+
+            // update checksums
+            archive
+                .update_checksums(endian)
+                .context("failed to update archive checksums")?;
 
             archive
                 .write_options(&mut creator.writer, endian, ())
@@ -246,7 +251,7 @@ impl Extractor {
         };
 
         if entry.compressed_size == 0 && entry.uncompressed_size == 0 {
-            println!("Skipping '{}' because it's empty", path.display());
+            println!("[+] Skipping '{}' because it's empty", path.display());
             return Ok(());
         }
 
@@ -328,11 +333,8 @@ impl Creator {
                     .context("failed to compress file using zlib")?;
 
                 compressed_buf.shrink_to_fit();
-                entry.is_compressed = compressed_buf.len() < buf.len();
-                if entry.is_compressed {
-                    entry.compressed_size = compressed_buf.len() as u32;
-                    buf = compressed_buf;
-                }
+                entry.compressed_size = compressed_buf.len() as u32;
+                buf = compressed_buf;
             }
 
             entry.offset = self
@@ -349,7 +351,7 @@ impl Creator {
             // read from archive
 
             if entry.compressed_size == 0 && entry.uncompressed_size == 0 {
-                println!("Skipping '{}' because it's empty", path.display());
+                println!("[+] Skipping '{}' because it's empty", path.display());
                 return Ok(());
             }
 

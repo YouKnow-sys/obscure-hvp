@@ -1,3 +1,5 @@
+use std::io::{Seek, Write};
+
 use binrw::{BinRead, BinResult, BinWrite, Error, VecArgs, parser, writer};
 
 #[parser(reader, endian)]
@@ -16,4 +18,45 @@ pub fn write_string(str: &String) -> BinResult<()> {
     (str.len() as u32).write_options(writer, endian, ())?;
     str.as_bytes().write_options(writer, endian, ())?;
     Ok(())
+}
+
+/// A dummy writer that we use only to caculate crc32 checksum
+pub struct DummyCrc32Writer {
+    hasher: crc32fast::Hasher,
+    pos: u64,
+}
+
+impl DummyCrc32Writer {
+    pub fn new() -> Self {
+        Self {
+            hasher: crc32fast::Hasher::new(),
+            pos: 0,
+        }
+    }
+
+    pub fn checksum(self) -> u32 {
+        self.hasher.finalize()
+    }
+}
+
+impl Write for DummyCrc32Writer {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.hasher.update(buf);
+        self.pos += buf.len() as u64;
+        Ok(buf.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl Seek for DummyCrc32Writer {
+    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+        let std::io::SeekFrom::Current(0) = pos else {
+            unimplemented!("this writer doesn't support seek")
+        };
+
+        Ok(self.pos)
+    }
 }
