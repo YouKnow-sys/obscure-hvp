@@ -250,7 +250,7 @@ impl Extractor {
             None => PathBuf::from(entry.name),
         };
 
-        if entry.compressed_size == 0 && entry.uncompressed_size == 0 {
+        if entry.uncompressed_size == 0 {
             println!("[+] Skipping '{}' because it's empty", path.display());
             return Ok(());
         }
@@ -350,7 +350,7 @@ impl Creator {
         } else {
             // read from archive
 
-            if entry.compressed_size == 0 && entry.uncompressed_size == 0 {
+            if entry.uncompressed_size == 0 {
                 println!("[+] Skipping '{}' because it's empty", path.display());
                 return Ok(());
             }
