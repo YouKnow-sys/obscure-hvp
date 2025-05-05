@@ -9,12 +9,12 @@ A simple CLI tool to extract and create hvp archives from obscure game series **
 simply open a cmd or terminal and type `obscure-hvp --help` to see the full help message of the tool
 
 a few examples:
-- **extracting files from a PS2 hvp file:**
+- **extracting files from a hvp archive:**
   ```sh
-  obscure-hvp -p ps2 extract "path-to-hvp"
+  obscure-hvp extract "path-to-hvp"
   ```
-- **creating a new PS2 archive from extracted files:**
+- **creating a new hvp archive from extracted files:**
   ```sh
-  obscure-hvp -p ps2 create "path-to-hvp" "path-to-extracted-files-folder"
+  obscure-hvp create "path-to-hvp" "path-to-extracted-files-folder"
   ```
-  remember for faster import you can just leave the files that you want to change in extracted-files-folder.
+  remember for faster import you can just leave the files that you want to change in `path-to-extracted-files-folder`.

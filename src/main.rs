@@ -27,13 +27,20 @@ struct Commands {
     /// What game is the archive from
     #[arg(short = 'g', default_value_t = Game::Obscure1, value_enum, global = true)]
     game: Game,
-    /// archive is from what platform
-    #[arg(short = 'p', default_value_t = Platform::default(), value_enum, global = true)]
-    platform: Platform,
 }
 
 #[derive(Subcommand)]
 enum Operation {
+    #[cfg(feature = "dump")]
+    /// dump hvp archive TOC as json
+    #[command(arg_required_else_help = true)]
+    Dump {
+        /// path to input hvp archive
+        #[arg(value_hint = ValueHint::FilePath, value_parser = utils::is_file)]
+        input: PathBuf,
+        /// output json file, if empty a json file with the same name of input hvp will be created
+        output: Option<PathBuf>,
+    },
     /// extract files from hvp archive
     #[command(arg_required_else_help = true)]
     Extract {
@@ -43,6 +50,9 @@ enum Operation {
         /// output folder, if empty a folder with the same name as input will be used
         #[arg(value_hint = ValueHint::DirPath)]
         output_folder: Option<PathBuf>,
+        /// skip checksum validatation
+        #[arg(long, short = 's', default_value_t = false, required = false)]
+        skip_checksum_validatation: bool,
     },
     /// create a new hvp archive based on extracted data and original archive
     #[command(arg_required_else_help = true)]
@@ -55,6 +65,9 @@ enum Operation {
         input_folder: PathBuf,
         /// output file, if empty a new file with the same name of input hvp will be created (+ new)
         output: Option<PathBuf>,
+        /// skip compression of the files
+        #[arg(long, short = 'c', default_value_t = false, required = false)]
+        skip_compression: bool,
     },
 }
 
@@ -67,30 +80,42 @@ enum Game {
     Obscure1,
 }
 
-#[derive(ValueEnum, Copy, Clone, Debug, PartialEq, Eq, Default)]
-enum Platform {
-    /// pc version of the game
-    #[default]
-    Pc,
-    /// ps2 version of the game
-    Ps2,
-}
-
 fn main() -> anyhow::Result<()> {
     let cmd = Commands::parse();
 
     // for now we only support obscure 1 so we don't check for game input
 
-    // the only difference between pc and ps2 version is endian
-    let endian = match cmd.platform {
-        Platform::Pc => Endian::Little,
-        Platform::Ps2 => Endian::Big,
-    };
-
     match cmd.operation {
+        #[cfg(feature = "dump")]
+        Operation::Dump { input, output } => {
+            let output = output.unwrap_or_else(|| input.with_extension("json"));
+            let file = File::open(input).context("failed to open input hvp file")?;
+            let mut reader = BufReader::new(file);
+
+            // load the archive
+            let archive = obscure1::HvpArchive::read_options(&mut reader, Endian::Big, ())
+                .context("failed to load hvp archive")?;
+
+            println!("[+] Loaded hvp archive");
+            println!(" - root files/dirs: {}", archive.header.root_count);
+            println!(" - all files/folders: {}", archive.header.all_count);
+            println!(" - files: {}", archive.header.file_count);
+
+            let outfile = File::create(&output).context("failed to create output json file")?;
+            let writer = BufWriter::new(outfile);
+
+            serde_json::to_writer_pretty(writer, &archive)
+                .context("failed to dump archive information as json")?;
+
+            println!(
+                "[D] dump process finished and json file saved as '{}'",
+                output.display()
+            );
+        }
         Operation::Extract {
             input,
             output_folder,
+            skip_checksum_validatation,
         } => {
             let output = output_folder.unwrap_or_else(|| input.with_extension(""));
             let file = File::open(input).context("failed to open input hvp file")?;
@@ -102,7 +127,7 @@ fn main() -> anyhow::Result<()> {
             }
 
             // load the archive
-            let archive = obscure1::HvpArchive::read_options(&mut reader, endian, ())
+            let archive = obscure1::HvpArchive::read_options(&mut reader, Endian::Big, ())
                 .context("failed to load hvp archive")?;
 
             println!("[+] Loaded hvp archive");
@@ -114,6 +139,7 @@ fn main() -> anyhow::Result<()> {
             let mut extractor = Extractor {
                 reader,
                 output: output.clone(),
+                skip_checksum_validatation,
             };
 
             for entry in archive.entries {
@@ -124,7 +150,7 @@ fn main() -> anyhow::Result<()> {
             }
 
             println!(
-                "export process finished and all files saved in '{}' folder",
+                "[D] export process finished and all files saved in '{}' folder",
                 output.display()
             );
         }
@@ -132,6 +158,7 @@ fn main() -> anyhow::Result<()> {
             input_hvp,
             input_folder,
             output,
+            skip_compression,
         } => {
             let output = output.unwrap_or_else(|| {
                 input_hvp.with_extension(
@@ -154,7 +181,7 @@ fn main() -> anyhow::Result<()> {
             println!("[+] found {} files in input folder", file_list.len());
 
             // load the archive
-            let mut archive = obscure1::HvpArchive::read_options(&mut reader, endian, ())
+            let mut archive = obscure1::HvpArchive::read_options(&mut reader, Endian::Big, ())
                 .context("failed to load hvp archive")?;
 
             // store the position after reading archive so we can resize output file based on it
@@ -181,6 +208,7 @@ fn main() -> anyhow::Result<()> {
                 writer,
                 file_list,
                 input_folder,
+                skip_compression,
             };
 
             for entry in archive.entries.iter_mut() {
@@ -198,17 +226,17 @@ fn main() -> anyhow::Result<()> {
 
             // update checksums
             archive
-                .update_checksums(endian)
+                .update_checksums(Endian::Big)
                 .context("failed to update archive checksums")?;
 
             archive
-                .write_options(&mut creator.writer, endian, ())
+                .write_options(&mut creator.writer, Endian::Big, ())
                 .context("failed to write archive header to writer")?;
 
             creator.writer.flush().context("failed to flush writer")?;
 
             println!(
-                "create process successfully finished and a new archive saved at '{}'",
+                "[D] create process successfully finished and a new archive saved at '{}'",
                 output.display()
             );
         }
@@ -220,6 +248,7 @@ fn main() -> anyhow::Result<()> {
 struct Extractor {
     reader: BufReader<File>,
     output: PathBuf,
+    skip_checksum_validatation: bool,
 }
 
 impl Extractor {
@@ -246,8 +275,8 @@ impl Extractor {
 
     fn file(&mut self, entry: obscure1::FileEntry, parent: Option<&Path>) -> anyhow::Result<()> {
         let path = match parent {
-            Some(parent) => parent.join(entry.name),
-            None => PathBuf::from(entry.name),
+            Some(parent) => parent.join(&entry.name),
+            None => PathBuf::from(&entry.name),
         };
 
         if entry.uncompressed_size == 0 {
@@ -263,6 +292,18 @@ impl Extractor {
         self.reader
             .read_exact(&mut buf)
             .context("failed to read file entry data")?;
+
+        if !self.skip_checksum_validatation {
+            let data_checksum = obscure1::bytes_sum(&buf);
+            if entry.checksum != data_checksum {
+                anyhow::bail!(
+                    "checksum of file {} doesn't match with its data ({} != {})",
+                    entry.name,
+                    entry.checksum,
+                    data_checksum
+                );
+            }
+        }
 
         if entry.is_compressed {
             let mut decompressed_buf = vec![0_u8; entry.uncompressed_size as usize];
@@ -288,6 +329,7 @@ struct Creator {
     writer: BufWriter<File>,
     file_list: Vec<PathBuf>,
     input_folder: PathBuf,
+    skip_compression: bool,
 }
 
 impl Creator {
@@ -326,6 +368,10 @@ impl Creator {
             entry.compressed_size = buf.len() as u32;
             entry.uncompressed_size = buf.len() as u32;
 
+            if self.skip_compression && entry.is_compressed {
+                entry.is_compressed = false;
+            }
+
             if entry.is_compressed {
                 let mut compressed_buf = Vec::with_capacity(deflate_bound(buf.len()));
                 flate2::Compress::new(Compression::best(), true)
@@ -341,6 +387,8 @@ impl Creator {
                 .writer
                 .stream_position()
                 .context("failed to get writer position")? as u32;
+
+            entry.checksum = obscure1::bytes_sum(&buf);
 
             self.writer
                 .write_all(&buf)

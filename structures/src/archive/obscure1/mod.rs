@@ -2,8 +2,13 @@ use binrw::{BinResult, BinWrite, Endian, binrw};
 
 use crate::utils::{self, DummyCrc32Writer};
 
+pub use checksum::bytes_sum;
+
+mod checksum;
+
 #[binrw]
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct HvpArchive {
     pub header: Header,
     #[br(if(header.minor_version == 1))]
@@ -34,6 +39,7 @@ impl HvpArchive {
 #[binrw]
 #[brw(magic = b"HV PackFile\0")]
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Header {
     pub major_version: u16,
     pub minor_version: u16,
@@ -49,6 +55,7 @@ pub struct Header {
 
 #[binrw]
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Crc32 {
     pub header: u32,
     pub entries: u32,
@@ -56,6 +63,7 @@ pub struct Crc32 {
 
 #[binrw]
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct Entry {
     #[br(assert(entry_size > 0, "invalid entry in archive"))]
     entry_size: u32,
@@ -66,6 +74,7 @@ pub struct Entry {
 
 #[binrw]
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 #[br(import_raw(entry_type: u8))]
 pub enum EntryKind {
     #[br(pre_assert(entry_type == 0))]
@@ -75,13 +84,14 @@ pub enum EntryKind {
 
 #[binrw]
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct FileEntry {
     #[br(map = |v: u32| v > 0)]
     #[bw(map = |v| *v as u32)]
     pub is_compressed: bool,
     pub compressed_size: u32,
     pub uncompressed_size: u32,
-    pub hash: u32, // ?
+    pub checksum: i32,
     pub offset: u32,
     #[br(parse_with(utils::read_string))]
     #[bw(write_with(utils::write_string))]
@@ -90,6 +100,7 @@ pub struct FileEntry {
 
 #[binrw]
 #[derive(Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize))]
 pub struct DirEntry {
     #[br(assert(zero == 0))]
     zero: u32,
