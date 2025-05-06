@@ -19,6 +19,6 @@ a few examples:
   ```
   remember for faster import you can just leave the files that you want to change in `path-to-extracted-files-folder`.
 
-### Notes
+### Notes:
 - for **quick hvp extraction** without the need of opening terminal just drag and drop a single hvp file inside the tool executable.
 - for **quick hvp packing** without the need of opening terminal just drag and drop both the original hvp file and the extracted folder inside the tool executable.
