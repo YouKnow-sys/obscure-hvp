@@ -9,7 +9,7 @@ use anyhow::Context;
 use binrw::{BinRead, BinWrite, Endian, io::BufReader};
 use clap::{Parser, Subcommand, ValueEnum, ValueHint};
 use flate2::{Compression, FlushCompress};
-use structures::archive::obscure1;
+use obscure_core::archive::obscure1;
 
 mod utils;
 
@@ -81,7 +81,44 @@ enum Game {
 }
 
 fn main() -> anyhow::Result<()> {
-    let cmd = Commands::parse();
+    let cmd = match Commands::try_parse() {
+        Ok(cmd) => cmd,
+        Err(e) => {
+            let mut hvp = None;
+            let mut folder = None;
+
+            for arg in std::env::args().skip(1) {
+                let path = Path::new(&arg);
+                if arg.to_lowercase().ends_with(".hvp") && path.is_file() {
+                    hvp = Some(path.to_path_buf());
+                } else if path.is_dir() {
+                    folder = Some(path.to_path_buf());
+                }
+            }
+
+            let Some(hvp) = hvp else { e.exit() };
+
+            match folder {
+                Some(folder) => Commands {
+                    operation: Operation::Create {
+                        input_hvp: hvp,
+                        input_folder: folder,
+                        output: None,
+                        skip_compression: false,
+                    },
+                    game: Game::Auto,
+                },
+                None => Commands {
+                    operation: Operation::Extract {
+                        input: hvp,
+                        output_folder: None,
+                        skip_checksum_validatation: false,
+                    },
+                    game: Game::Auto,
+                },
+            }
+        }
+    };
 
     // for now we only support obscure 1 so we don't check for game input
 

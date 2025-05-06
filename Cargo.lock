@@ -232,15 +232,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "obscure-core"
+version = "0.1.0"
+dependencies = [
+ "binrw",
+ "crc32fast",
+ "serde",
+]
+
+[[package]]
 name = "obscure-hvp"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "binrw",
  "clap",
  "flate2",
+ "obscure-core",
  "serde_json",
- "structures",
  "walkdir",
 ]
 
@@ -338,15 +347,6 @@ name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
-
-[[package]]
-name = "structures"
-version = "0.1.0"
-dependencies = [
- "binrw",
- "crc32fast",
- "serde",
-]
 
 [[package]]
 name = "syn"
