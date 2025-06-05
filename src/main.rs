@@ -9,6 +9,7 @@ use anyhow::Context;
 use binrw::{BinRead, BinWrite, Endian, io::BufReader};
 use clap::{Parser, Subcommand, ValueEnum, ValueHint};
 use flate2::{Compression, FlushCompress};
+use obscure_core::Game as CoreGame;
 use obscure_core::archive::obscure1;
 
 mod utils;
@@ -25,7 +26,7 @@ struct Commands {
     #[command(subcommand)]
     operation: Operation,
     /// What game is the archive from
-    #[arg(short = 'g', default_value_t = Game::Obscure1, value_enum, global = true)]
+    #[arg(short = 'g', default_value_t = Game::Auto, value_enum, global = true)]
     game: Game,
 }
 
@@ -71,13 +72,26 @@ enum Operation {
     },
 }
 
+impl Operation {
+    fn input_hvp_path(&self) -> &Path {
+        match self {
+            #[cfg(feature = "dump")]
+            Operation::Dump { input, .. } => input,
+            Operation::Extract { input, .. } => input,
+            Operation::Create { input_hvp, .. } => input_hvp,
+        }
+    }
+}
+
 #[derive(ValueEnum, Copy, Clone, Debug, Default)]
 enum Game {
     /// auto detect the game based on input hvp
     #[default]
     Auto,
-    /// the obscure game
+    /// Obscure 1 game
     Obscure1,
+    /// Obscure 2 game
+    Obscure2,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -120,29 +134,57 @@ fn main() -> anyhow::Result<()> {
         }
     };
 
-    // for now we only support obscure 1 so we don't check for game input
+    // open hvp archive
+    let file =
+        File::open(cmd.operation.input_hvp_path()).context("failed to open input hvp file")?;
+    let mut reader = BufReader::new(file);
+
+    let game = match cmd.game {
+        Game::Auto => obscure_core::archive::try_detect_game(&mut reader)
+            .context("failed to auto detect the game")?
+            .ok_or(anyhow::anyhow!("input archive doesn't match any game"))?,
+        Game::Obscure1 => CoreGame::Obscure1,
+        Game::Obscure2 => CoreGame::Obscure2,
+    };
 
     match cmd.operation {
         #[cfg(feature = "dump")]
         Operation::Dump { input, output } => {
             let output = output.unwrap_or_else(|| input.with_extension("json"));
-            let file = File::open(input).context("failed to open input hvp file")?;
-            let mut reader = BufReader::new(file);
 
-            // load the archive
-            let archive = obscure1::HvpArchive::read_options(&mut reader, Endian::Big, ())
-                .context("failed to load hvp archive")?;
+            // TODO: TEMP
+            if game == CoreGame::Obscure1 {
+                // load the archive
+                let archive = obscure1::HvpArchive::read_options(&mut reader, Endian::Big, ())
+                    .context("failed to load hvp archive")?;
 
-            println!("[+] Loaded hvp archive");
-            println!(" - root files/dirs: {}", archive.header.root_count);
-            println!(" - all files/folders: {}", archive.header.all_count);
-            println!(" - files: {}", archive.header.file_count);
+                println!("[+] Loaded hvp archive");
+                println!(" - root files/dirs: {}", archive.header.root_count);
+                println!(" - all files/folders: {}", archive.header.all_count);
+                println!(" - files: {}", archive.header.file_count);
 
-            let outfile = File::create(&output).context("failed to create output json file")?;
-            let writer = BufWriter::new(outfile);
+                let outfile = File::create(&output).context("failed to create output json file")?;
+                let writer = BufWriter::new(outfile);
 
-            serde_json::to_writer_pretty(writer, &archive)
-                .context("failed to dump archive information as json")?;
+                serde_json::to_writer_pretty(writer, &archive)
+                    .context("failed to dump archive information as json")?;
+            } else {
+                // TODO: TEMP
+                use obscure_core::archive::obscure2;
+
+                // load the archive
+                let archive = obscure2::HvpArchive::read_options(&mut reader, Endian::Little, ())
+                    .context("failed to load hvp archive")?;
+
+                println!("[+] Loaded hvp archive");
+                println!(" - entries count: {}", archive.header.entries_count);
+
+                let outfile = File::create(&output).context("failed to create output json file")?;
+                let writer = BufWriter::new(outfile);
+
+                serde_json::to_writer_pretty(writer, &archive)
+                    .context("failed to dump archive information as json")?;
+            }
 
             println!(
                 "[D] dump process finished and json file saved as '{}'",
@@ -154,9 +196,11 @@ fn main() -> anyhow::Result<()> {
             output_folder,
             skip_checksum_validatation,
         } => {
+            if game == CoreGame::Obscure2 {
+                unimplemented!()
+            }
+
             let output = output_folder.unwrap_or_else(|| input.with_extension(""));
-            let file = File::open(input).context("failed to open input hvp file")?;
-            let mut reader = BufReader::new(file);
 
             if !output.is_dir() {
                 println!("[!] Creating output folder");
@@ -197,6 +241,10 @@ fn main() -> anyhow::Result<()> {
             output,
             skip_compression,
         } => {
+            if game == CoreGame::Obscure2 {
+                unimplemented!()
+            }
+
             let output = output.unwrap_or_else(|| {
                 input_hvp.with_extension(
                     input_hvp
@@ -206,8 +254,6 @@ fn main() -> anyhow::Result<()> {
                         .unwrap_or("new".to_owned()),
                 )
             });
-            let file = File::open(input_hvp).context("failed to open input hvp file")?;
-            let mut reader = BufReader::new(file);
 
             let file_list = utils::list_files(&input_folder, true);
 

@@ -67,17 +67,14 @@ pub struct Crc32 {
 pub struct Entry {
     #[br(assert(entry_size > 0, "invalid entry in archive"))]
     entry_size: u32,
-    pub entry_type: u8,
-    #[br(args_raw(entry_type))]
     pub kind: EntryKind,
 }
 
 #[binrw]
 #[derive(Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize))]
-#[br(import_raw(entry_type: u8))]
 pub enum EntryKind {
-    #[br(pre_assert(entry_type == 0))]
+    #[br(magic = 0u8)]
     Dir(DirEntry),
     File(FileEntry),
 }
