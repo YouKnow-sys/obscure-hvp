@@ -1,0 +1,20 @@
+[package]
+name = "hvp-archive"
+version = "1.0.0"
+edition = "2024"
+
+[dependencies]
+ahash.workspace = true
+log.workspace = true
+crc32fast.workspace = true
+thiserror.workspace = true
+binrw = "0.15"
+memmap2 = "0.9"
+serde = { version = "1.0", features = ["derive"], optional = true }
+flate2 = { version = "1.0", features = ["zlib"], default-features = false }
+lzokay-native = "0.1"
+
+[features]
+# make the raw structures public, enabling this will also
+# enable serde
+raw_structure = ["dep:serde"]

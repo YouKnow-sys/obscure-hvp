@@ -1,4 +1,6 @@
-use std::io::{Seek, Write};
+//! common methods and types between games
+
+use std::io::{Seek, SeekFrom, Write};
 
 use binrw::{BinRead, BinResult, BinWrite, Error, VecArgs, parser, writer};
 
@@ -52,8 +54,8 @@ impl Write for DummyCrc32Writer {
 }
 
 impl Seek for DummyCrc32Writer {
-    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        let std::io::SeekFrom::Current(0) = pos else {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        let SeekFrom::Current(0) = pos else {
             unimplemented!("this writer doesn't support seek")
         };
 
