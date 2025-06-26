@@ -31,7 +31,7 @@ jobs:
         run: |
           cat > target/doc/index.html <<EOF
           <meta charset="utf-8">
-          <meta http-equiv="refresh" content="0; url=dloc_core">
+          <meta http-equiv="refresh" content="0; url=obscure_hvp">
           EOF
 
       - name: Fix permissions
