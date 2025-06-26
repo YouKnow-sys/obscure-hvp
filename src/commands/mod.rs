@@ -29,7 +29,7 @@ pub struct Commands {
     #[command(subcommand)]
     pub operation: Operation,
     /// What game is the archive from
-    #[arg(short = 'g', default_value_t = Game::Auto, value_enum, global = true)]
+    #[arg(long, short = 'g', default_value_t = Game::Auto, value_enum, global = true)]
     pub game: Game,
 }
 
