@@ -28,7 +28,7 @@ pub struct Commands {
     #[arg(value_hint = ValueHint::DirPath, value_parser = utils::is_dir)]
     pub input_folder: PathBuf,
     /// output file, if empty a new file with the same name of input hvp will be created (+ new)
-    output: Option<PathBuf>,
+    pub output: Option<PathBuf>,
     /// skip compression of the files
     #[arg(long, short = 'c', default_value_t = false, required = false)]
     pub skip_compression: bool,

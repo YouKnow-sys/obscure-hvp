@@ -10,10 +10,10 @@ use clap::{Parser, Subcommand, ValueEnum};
 use hvp_archive::{archive::Obscure2NameMap, provider::ArchiveProvider};
 use owo_colors::OwoColorize;
 
-mod create;
+pub mod create;
 #[cfg(feature = "dump")]
 mod dump;
-mod extract;
+pub mod extract;
 mod utils;
 
 const HASHES_FILE: &str = "hashes.json";
