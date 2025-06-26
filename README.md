@@ -62,7 +62,7 @@ obscure-hvp create "archive.hvp" "files" --update-all-files
 ```
 
 ## Notes
-- when creating a new archive tool will check which file is modified and just read the modified files from disk, you can override this feature and force the tool to read all the files from this using `--update-all-files` option.
+- when creating a new archive tool will check which file is modified and just read the modified files from disk, you can override this feature and force the tool to read all the files from disk using `--update-all-files` option.
 - tool will autodetect the game from input hvp, but you can also set it manually using `--game` option.
 - For **quick HVP extraction** without the need of opening a terminal, simply drag and drop a single HVP file onto the tool executable to extract it immediately.
 - For **quick HVP packing** without the need of opening a terminal, drag and drop both the original HVP file and the extracted folder onto the tool executable to create a new archive automatically.
