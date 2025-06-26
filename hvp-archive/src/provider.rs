@@ -113,7 +113,9 @@ fn validate_entries(raw_archive: &RawArchive, mmap: &[u8]) -> bool {
             }
 
             fn check_file(e: &obscure1::FileEntry, mmap: &[u8]) -> bool {
-                (e.offset + e.compressed_size) as usize <= mmap.len()
+                // somehow entries with uncompressed size zero have crazy compressed sizes
+                // so we just ignore them
+                e.uncompressed_size == 0 || (e.offset + e.compressed_size) as usize <= mmap.len()
             }
 
             fn check_dir(e: &obscure1::DirEntry, mmap: &[u8]) -> bool {
