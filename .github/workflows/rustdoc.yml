@@ -31,7 +31,7 @@ jobs:
         run: |
           cat > target/doc/index.html <<EOF
           <meta charset="utf-8">
-          <meta http-equiv="refresh" content="0; url=obscure_hvp">
+          <meta http-equiv="refresh" content="0; url=hvp_archive">
           EOF
 
       - name: Fix permissions
