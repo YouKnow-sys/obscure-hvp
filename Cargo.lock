@@ -288,7 +288,7 @@ checksum = "f154ce46856750ed433c8649605bf7ed2de3bc35fd9d2a9f30cddd873c80cb08"
 
 [[package]]
 name = "hvp-archive"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "ahash",
  "binrw",
@@ -419,7 +419,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "obscure-hvp"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "ahash",
  "anstream",
