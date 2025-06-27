@@ -17,6 +17,12 @@ fn load() -> ArchiveProvider {
         .expect("failed to load hvp archive using provider")
 }
 
+fn load_wii() -> ArchiveProvider {
+    let file = File::open(constants::OBSCURE2_WII_HVP).expect("failed to open file");
+    ArchiveProvider::new(file, Some(Game::Obscure2))
+        .expect("failed to load hvp archive using provider")
+}
+
 #[test]
 fn load_and_check_obscure2() {
     let provider = load();
@@ -50,6 +56,53 @@ fn rebuild_obscure2() {
     // rebuild the archive as is without any changes
 
     let org_archive = std::fs::read(constants::OBSCURE2_HVP).expect("failed to open file");
+    let mut writer = Cursor::new(Vec::with_capacity(org_archive.len()));
+    archive
+        .rebuild(&mut writer, EmptyProgress)
+        .expect("failed to rebuild archive");
+
+    writer.flush().unwrap();
+    let rebuild_archive = writer.into_inner();
+
+    assert_eq!(
+        org_archive, rebuild_archive,
+        "the original archive doesn't match the new generated archive"
+    );
+}
+
+#[test]
+fn load_and_check_obscure2_wii() {
+    let provider = load_wii();
+    let archive = Archive::new(&provider);
+
+    // check archive metadata
+
+    assert_eq!(
+        archive.metadata(),
+        Metadata {
+            dir_count: 12,
+            file_count: 83,
+            game: Game::Obscure2
+        },
+        "archive metadata doesn't match with the expected metadata"
+    );
+
+    // check whatever checksums are valid
+
+    assert!(
+        archive.entries_checksum_match(),
+        "entries checksum doesn't match"
+    );
+}
+
+#[test]
+fn rebuild_obscure2_wii() {
+    let provider = load_wii();
+    let archive = Archive::new(&provider);
+
+    // rebuild the archive as is without any changes
+
+    let org_archive = std::fs::read(constants::OBSCURE2_WII_HVP).expect("failed to open file");
     let mut writer = Cursor::new(Vec::with_capacity(org_archive.len()));
     archive
         .rebuild(&mut writer, EmptyProgress)
