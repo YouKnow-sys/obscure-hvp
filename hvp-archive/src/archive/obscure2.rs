@@ -186,7 +186,7 @@ pub fn update_entries<W: Write, P: RebuildProgress>(
         updater.process_entry(o_entry_idx, u_entry, archive.entries_mut())?;
     }
 
-    archive.update_checksums().unwrap();
+    archive.update_checksums()?;
 
     Ok(archive)
 }

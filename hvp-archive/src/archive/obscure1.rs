@@ -120,7 +120,7 @@ pub fn update_entries<W: Write, P: RebuildProgress>(
         }
     }
 
-    archive.update_checksums(Endian::Big).unwrap();
+    archive.update_checksums(Endian::Big)?;
 
     Ok(archive)
 }
