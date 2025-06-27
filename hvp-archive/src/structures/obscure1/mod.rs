@@ -1,6 +1,6 @@
 //! obscure 1 hvp archive structure
 
-use binrw::{BinResult, BinWrite, Endian, binrw};
+use binrw::{Endian, binrw};
 
 use super::common;
 
@@ -10,27 +10,10 @@ use super::common;
 pub struct HvpArchive {
     pub header: Header,
     #[br(if(header.minor_version == 1))]
+    #[bw(args(header, entries))]
     pub checksums: Option<Crc32>,
     #[br(count = header.root_count)]
     pub entries: Vec<Entry>,
-}
-
-impl HvpArchive {
-    pub fn update_checksums(&mut self, endian: Endian) -> BinResult<()> {
-        let Some(checksums) = &mut self.checksums else {
-            return Ok(());
-        };
-
-        let mut writer = common::DummyCrc32Writer::new();
-        self.header.write_options(&mut writer, endian, ())?;
-        checksums.header = writer.checksum();
-
-        let mut writer = common::DummyCrc32Writer::new();
-        self.entries.write_options(&mut writer, endian, ())?;
-        checksums.entries = writer.checksum();
-
-        Ok(())
-    }
 }
 
 #[binrw]
@@ -53,8 +36,11 @@ pub struct Header {
 #[binrw]
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
+#[bw(import(in_header: &Header, in_entries: &[Entry]))]
 pub struct Crc32 {
+    #[bw(try_map = |_| common::generate_crc32(&in_header, Endian::Big))]
     pub header: u32,
+    #[bw(try_map = |_| common::generate_crc32(&in_entries, Endian::Big))]
     pub entries: u32,
 }
 

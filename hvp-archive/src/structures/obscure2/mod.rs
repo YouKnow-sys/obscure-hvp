@@ -5,7 +5,7 @@ use std::{
     ops::Range,
 };
 
-use binrw::{BinResult, BinWrite, Endian, binrw};
+use binrw::{BinResult, Endian, binrw};
 
 use super::common;
 
@@ -18,6 +18,7 @@ const BIG_ENDIAN_MAGIC: [u8; 4] = [0, 4, 0, 0];
 #[br(stream = r, is_big = is_magic_big_endian(r)?)]
 #[bw(is_big = self.endian() == Endian::Big)]
 pub struct HvpArchive {
+    #[bw(args(entries))]
     pub header: Header,
     // TODO: add entries checksum validation
     #[br(count  = header.entries_count)]
@@ -27,26 +28,14 @@ pub struct HvpArchive {
 
 impl HvpArchive {
     pub(crate) fn endian(&self) -> Endian {
-        match self.header.magic {
-            LITTLE_ENDIAN_MAGIC => Endian::Little,
-            BIG_ENDIAN_MAGIC => Endian::Big,
-            _ => unreachable!(),
-        }
-    }
-
-    pub fn update_checksums(&mut self) -> BinResult<()> {
-        let mut writer = common::DummyCrc32Writer::new();
-
-        self.entries.write_options(&mut writer, self.endian(), ())?;
-        self.header.entries_crc32 = writer.checksum();
-
-        Ok(())
+        get_endian_by_magic(self.header.magic)
     }
 }
 
 #[binrw]
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
+#[bw(import(entries: &[Entry]))]
 pub struct Header {
     #[br(assert(magic == LITTLE_ENDIAN_MAGIC || magic == BIG_ENDIAN_MAGIC, "invalid magic value"))]
     magic: [u8; 4],
@@ -55,6 +44,7 @@ pub struct Header {
     #[br(assert(entries_count > 0, "invalid or empty hvp archive"))]
     pub entries_count: u32,
     #[br(assert(entries_crc32 > 0, "invalid archive, not a hvp file"))]
+    #[bw(try_map = |_| common::generate_crc32(&entries, get_endian_by_magic(self.magic)))]
     pub entries_crc32: u32,
 }
 
@@ -129,6 +119,15 @@ fn is_magic_big_endian<R: Read + Seek>(reader: &mut R) -> BinResult<bool> {
             pos,
             found: Box::new(buf),
         }),
+    }
+}
+
+#[inline(always)]
+fn get_endian_by_magic(magic: [u8; 4]) -> Endian {
+    match magic {
+        LITTLE_ENDIAN_MAGIC => Endian::Little,
+        BIG_ENDIAN_MAGIC => Endian::Big,
+        _ => unreachable!(),
     }
 }
 

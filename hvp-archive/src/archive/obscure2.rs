@@ -198,8 +198,6 @@ pub fn update_entries<W: Write, P: RebuildProgress>(
         updater.process_entry(o_entry_idx, u_entry, &mut archive.entries)?;
     }
 
-    archive.update_checksums()?;
-
     Ok(archive)
 }
 

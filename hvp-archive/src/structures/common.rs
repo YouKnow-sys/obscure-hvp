@@ -2,7 +2,7 @@
 
 use std::io::{Seek, SeekFrom, Write};
 
-use binrw::{BinRead, BinResult, BinWrite, Error, VecArgs, parser, writer};
+use binrw::{BinRead, BinResult, BinWrite, Endian, Error, VecArgs, parser, writer};
 
 #[parser(reader, endian)]
 pub fn read_string() -> BinResult<String> {
@@ -20,6 +20,15 @@ pub fn write_string(str: &String) -> BinResult<()> {
     (str.len() as u32).write_options(writer, endian, ())?;
     str.as_bytes().write_options(writer, endian, ())?;
     Ok(())
+}
+
+pub fn generate_crc32<D>(data: &D, endian: Endian) -> BinResult<u32>
+where
+    for<'a> D: BinWrite<Args<'a> = ()>,
+{
+    let mut writer = DummyCrc32Writer::new();
+    data.write_options(&mut writer, endian, ())?;
+    Ok(writer.checksum())
 }
 
 /// A dummy writer that we use only to caculate crc32 checksum
