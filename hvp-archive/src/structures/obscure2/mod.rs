@@ -20,8 +20,8 @@ const BIG_ENDIAN_MAGIC: [u8; 4] = [0, 4, 0, 0];
 pub struct HvpArchive {
     #[bw(args(entries))]
     pub header: Header,
-    // TODO: add entries checksum validation
-    #[br(count  = header.entries_count)]
+    #[br(args(header.entries_count as _, Some(header.entries_crc32)))]
+    #[br(parse_with = common::read_entries_with_validation)]
     #[br(assert(have_root_entry(&entries), "invalid obscure 2 hvp, archive should start with a root directory entry"))]
     pub entries: Vec<Entry>,
 }

@@ -12,7 +12,8 @@ pub struct HvpArchive {
     #[br(if(header.minor_version == 1))]
     #[bw(args(header, entries))]
     pub checksums: Option<Crc32>,
-    #[br(count = header.root_count)]
+    #[br(args(header.root_count as _, checksums.as_ref().map(|c| c.entries)))]
+    #[br(parse_with = common::read_entries_with_validation)]
     pub entries: Vec<Entry>,
 }
 
