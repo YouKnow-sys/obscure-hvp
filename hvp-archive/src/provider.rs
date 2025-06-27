@@ -124,7 +124,7 @@ fn validate_entries(raw_archive: &RawArchive, mmap: &[u8]) -> bool {
 
             archive.entries.iter().all(|e| check_entry(e, mmap))
         }
-        RawArchive::Obscure2(archive) => archive.entries().iter().all(|e| match &e.kind {
+        RawArchive::Obscure2(archive) => archive.entries.iter().all(|e| match &e.kind {
             obscure2::EntryKind::File(file) | obscure2::EntryKind::FileCompressed(file) => {
                 (file.offset + file.compressed_size) as usize <= mmap.len()
             }

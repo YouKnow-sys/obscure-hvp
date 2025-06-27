@@ -5,6 +5,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use binrw::Endian;
+
 use crate::structures;
 
 #[derive(Clone)]
@@ -49,6 +51,7 @@ pub struct FileEntry<'p> {
     pub(crate) name: String,
     pub(crate) compression_info: Option<CompressionInfo>,
     pub(crate) checksum: i32,
+    pub(crate) endian: Endian,
     pub raw_bytes: &'p [u8],
     /// if this path is set we replace the entry data with file from this path
     pub update: Option<UpdateKind>,
@@ -75,7 +78,7 @@ impl FileEntry<'_> {
 
     /// check whatever the checksum match
     pub fn checksum_match(&self) -> bool {
-        structures::checksum::bytes_sum(self.raw_bytes) == self.checksum
+        structures::checksum::bytes_sum(self.raw_bytes, self.endian) == self.checksum
     }
 }
 
@@ -110,6 +113,7 @@ pub struct FullFileEntry<'p> {
     pub path: PathBuf,
     pub(super) compression_info: Option<CompressionInfo>,
     pub(super) checksum: i32,
+    pub(super) endian: Endian,
     pub raw_bytes: &'p [u8],
 }
 
@@ -129,7 +133,7 @@ impl FullFileEntry<'_> {
 
     /// check whatever the checksum match
     pub fn checksum_match(&self) -> bool {
-        structures::checksum::bytes_sum(self.raw_bytes) == self.checksum
+        structures::checksum::bytes_sum(self.raw_bytes, self.endian) == self.checksum
     }
 }
 
@@ -167,7 +171,8 @@ impl FullFileEntryMut<'_, '_> {
 
     /// check whatever the checksum match
     pub fn checksum_match(&self) -> bool {
-        structures::checksum::bytes_sum(self.entry.raw_bytes) == self.entry.checksum
+        structures::checksum::bytes_sum(self.entry.raw_bytes, self.entry.endian)
+            == self.entry.checksum
     }
 
     /// update the entry
@@ -205,6 +210,7 @@ impl<'p> Entry<'p> {
                 path,
                 compression_info: entry.compression_info,
                 checksum: entry.checksum,
+                endian: entry.endian,
                 raw_bytes: entry.raw_bytes,
             }
         }

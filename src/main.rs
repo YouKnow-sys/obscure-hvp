@@ -33,6 +33,7 @@ fn main() -> anyhow::Result<()> {
                     skip_compression: false,
                     skip_checksum_validatation: false,
                     update_all_files: false,
+                    generate_anyway: false,
                 }),
                 None => Operation::Extract(extract::Commands {
                     input: hvp,

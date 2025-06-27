@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>A simple CLI tool to extract and create hvp archives from obscure game series</b></br>
-  <sub>Support PC, PS2 and PSP versions</sub>
+  <sub>Support PC, PS2, PSP and Wii versions</sub>
 </p>
 
 <div align="center">
@@ -22,10 +22,10 @@
 
 ## Supported Games
 
-| Game                     | Status        | Platforms     |
-|--------------------------|---------------|---------------|
-| Obscure 1                | Supported ✅  | PC, PS2       |
-| Obscure 2                | Supported ✅  | PC, PS2, PSP  |
+| Game                     | Status        | Platforms          |
+|--------------------------|---------------|--------------------|
+| Obscure 1                | Supported ✅  | PC, PS2            |
+| Obscure 2                | Supported ✅  | PC, PS2, PSP, Wii  |
 
 ## Installation
 

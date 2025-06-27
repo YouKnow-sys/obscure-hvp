@@ -40,9 +40,7 @@ impl Commands {
 
         match provider.raw_archive() {
             RawArchive::Obscure1(archive) => serde_json::to_writer_pretty(writer, &archive.entries),
-            RawArchive::Obscure2(archive) => {
-                serde_json::to_writer_pretty(writer, archive.entries())
-            }
+            RawArchive::Obscure2(archive) => serde_json::to_writer_pretty(writer, &archive.entries),
         }
         .context("failed to serialize entries")?;
 

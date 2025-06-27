@@ -65,6 +65,7 @@ impl<'p> Process<'p> {
                 compression_type: CompressionType::Zlib,
             }),
             checksum: entry.checksum,
+            endian: Endian::Little,
             raw_bytes,
             update: None,
         })
@@ -163,7 +164,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, W, P> {
             o_entry.compressed_size = bytes.len() as _;
             o_entry.uncompressed_size = bytes.len() as _;
             o_entry.is_compressed = false;
-            o_entry.checksum = checksum::bytes_sum(&bytes);
+            o_entry.checksum = checksum::bytes_sum(&bytes, Endian::Little);
             return Ok(());
         }
 
@@ -178,7 +179,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, W, P> {
         self.offset += compressed_buf.len() as u32;
         o_entry.compressed_size = compressed_buf.len() as _;
         o_entry.uncompressed_size = bytes.len() as _;
-        o_entry.checksum = checksum::bytes_sum(&compressed_buf);
+        o_entry.checksum = checksum::bytes_sum(&compressed_buf, Endian::Little);
 
         Ok(())
     }

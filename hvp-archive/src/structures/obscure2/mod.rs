@@ -1,76 +1,45 @@
 //! obscure 2 hvp archive structure
 
-use std::ops::Range;
+use std::{
+    io::{Read, Seek, SeekFrom},
+    ops::Range,
+};
 
 use binrw::{BinResult, BinWrite, Endian, binrw};
 
 use super::common;
 
-#[binrw]
-#[derive(Debug, Clone)]
-#[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
-#[brw(little)] // doesn't really matter
-pub enum HvpArchive {
-    #[brw(magic = b"\x00\x00\x04\x00")]
-    #[brw(little)]
-    LittleEndian(HvpArchiveInner),
-    #[brw(magic = b"\x00\x04\x00\x00")]
-    #[brw(big)]
-    BigEndian(HvpArchiveInner),
-}
+const LITTLE_ENDIAN_MAGIC: [u8; 4] = [0, 0, 4, 0];
+const BIG_ENDIAN_MAGIC: [u8; 4] = [0, 4, 0, 0];
 
 #[binrw]
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
-pub struct HvpArchiveInner {
+#[br(stream = r, is_big = is_magic_big_endian(r)?)]
+#[bw(is_big = self.endian() == Endian::Big)]
+pub struct HvpArchive {
     pub header: Header,
+    // TODO: add entries checksum validation
     #[br(count  = header.entries_count)]
     #[br(assert(have_root_entry(&entries), "invalid obscure 2 hvp, archive should start with a root directory entry"))]
     pub entries: Vec<Entry>,
 }
 
 impl HvpArchive {
-    #[inline(always)]
-    pub fn entries(&self) -> &[Entry] {
-        match self {
-            HvpArchive::LittleEndian(inner) => &inner.entries,
-            HvpArchive::BigEndian(inner) => &inner.entries,
-        }
-    }
-
-    #[inline(always)]
-    pub fn entries_mut(&mut self) -> &mut [Entry] {
-        match self {
-            HvpArchive::LittleEndian(inner) => &mut inner.entries,
-            HvpArchive::BigEndian(inner) => &mut inner.entries,
-        }
-    }
-
-    #[cfg(feature = "raw_structure")]
-    pub fn header(&self) -> &Header {
-        match self {
-            HvpArchive::LittleEndian(inner) => &inner.header,
-            HvpArchive::BigEndian(inner) => &inner.header,
-        }
-    }
-
-    pub fn header_mut(&mut self) -> &mut Header {
-        match self {
-            HvpArchive::LittleEndian(inner) => &mut inner.header,
-            HvpArchive::BigEndian(inner) => &mut inner.header,
+    pub(crate) fn endian(&self) -> Endian {
+        match self.header.magic {
+            LITTLE_ENDIAN_MAGIC => Endian::Little,
+            BIG_ENDIAN_MAGIC => Endian::Big,
+            _ => unreachable!(),
         }
     }
 
     pub fn update_checksums(&mut self) -> BinResult<()> {
         let mut writer = common::DummyCrc32Writer::new();
 
-        let (entries, endian) = match self {
-            HvpArchive::LittleEndian(inner) => (&inner.entries, Endian::Little),
-            HvpArchive::BigEndian(inner) => (&inner.entries, Endian::Big),
-        };
+        self.entries.write_options(&mut writer, self.endian(), ())?;
+        self.header.entries_crc32 = writer.checksum();
 
-        entries.write_options(&mut writer, endian, ())?;
-        self.header_mut().entries_crc32 = writer.checksum();
         Ok(())
     }
 }
@@ -79,6 +48,8 @@ impl HvpArchive {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
 pub struct Header {
+    #[br(assert(magic == LITTLE_ENDIAN_MAGIC || magic == BIG_ENDIAN_MAGIC, "invalid magic value"))]
+    magic: [u8; 4],
     #[br(assert(zero == 0))]
     zero: u32,
     #[br(assert(entries_count > 0, "invalid or empty hvp archive"))]
@@ -112,7 +83,7 @@ pub enum EntryKind {
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
 pub struct FileEntry {
     #[br(assert(zero == 0))]
-    zero: i16,
+    zero: u16,
     pub checksum: i32,
     pub uncompressed_size: u32,
     pub offset: u32,
@@ -124,7 +95,7 @@ pub struct FileEntry {
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
 pub struct DirEntry {
     #[br(assert(zero1 == 0))]
-    zero1: i16,
+    zero1: u16,
     #[br(assert(zero2 == 0))]
     zero2: u32,
     #[br(assert(zero3 == 0))]
@@ -139,6 +110,25 @@ impl DirEntry {
         let start = self.index as usize;
         let end = start + self.count as usize;
         start..end
+    }
+}
+
+// PC, PS2 and PSP use LittleEndian
+// Wii use BigEndian
+fn is_magic_big_endian<R: Read + Seek>(reader: &mut R) -> BinResult<bool> {
+    let pos = reader.stream_position()?;
+
+    let mut buf = [0_u8; 4];
+    reader.read_exact(&mut buf)?;
+    reader.seek(SeekFrom::Start(pos))?;
+
+    match buf {
+        LITTLE_ENDIAN_MAGIC => Ok(false),
+        BIG_ENDIAN_MAGIC => Ok(true),
+        _ => Err(binrw::Error::BadMagic {
+            pos,
+            found: Box::new(buf),
+        }),
     }
 }
 

@@ -1,6 +1,7 @@
-use std::io::Write;
+use std::io::{Read, Write};
 use std::ops::Range;
 
+use binrw::Endian;
 use lzokay_native::Dict;
 
 use super::Metadata;
@@ -15,6 +16,7 @@ use crate::structures::{checksum, obscure2};
 pub fn map_entries<'p>(
     provider: &'p ArchiveProvider,
     entries: &[obscure2::Entry],
+    endian: Endian,
     name_map: &Obscure2NameMap,
 ) -> (Vec<Entry<'p>>, Metadata) {
     // we ignore the root dir, because it really don't serve any purpose except adding one layer of nesting
@@ -33,6 +35,7 @@ pub fn map_entries<'p>(
     let mut process = Process {
         provider,
         entries,
+        endian,
         name_map,
         metadata: Metadata {
             dir_count: 0,
@@ -53,6 +56,7 @@ pub fn map_entries<'p>(
 struct Process<'p, 'e, 'n> {
     provider: &'p ArchiveProvider,
     entries: &'e [obscure2::Entry],
+    endian: Endian,
     name_map: &'n Obscure2NameMap,
     metadata: Metadata,
 }
@@ -95,6 +99,7 @@ impl<'p> Process<'p, '_, '_> {
                 compression_type: CompressionType::Lzo,
             }),
             checksum: entry.checksum,
+            endian: self.endian,
             raw_bytes: self
                 .provider
                 .get_bytes(entry.offset as _, entry.compressed_size as _),
@@ -157,7 +162,7 @@ pub fn update_entries<W: Write, P: RebuildProgress>(
 ) -> Result<obscure2::HvpArchive, RebuildError> {
     // we ignore the root dir, because it really don't serve any purpose except adding one layer of nesting
     // we can manually add it when we are writing the entries back
-    let root_count = match &archive.entries()[0] {
+    let root_count = match &archive.entries[0] {
         obscure2::Entry {
             name_crc32: 0,
             kind:
@@ -175,7 +180,14 @@ pub fn update_entries<W: Write, P: RebuildProgress>(
         skip_compression,
         name_map,
         compress_dict: Dict::new(),
+        endian: archive.endian(),
+        last_padding: None,
     };
+
+    if updater.endian == Endian::Big {
+        // we need to apply padding after the entris
+        updater.caculate_padding();
+    }
 
     let mut entries_iter = entries.iter();
     for o_entry_idx in 1..1 + root_count {
@@ -183,7 +195,7 @@ pub fn update_entries<W: Write, P: RebuildProgress>(
             unreachable!("number of parsed entries doesn't match with original entries");
         };
 
-        updater.process_entry(o_entry_idx, u_entry, archive.entries_mut())?;
+        updater.process_entry(o_entry_idx, u_entry, &mut archive.entries)?;
     }
 
     archive.update_checksums()?;
@@ -199,6 +211,14 @@ pub struct Updater<'a, 'n, W: Write, P: RebuildProgress> {
     skip_compression: bool,
     name_map: &'n Obscure2NameMap,
     compress_dict: Dict,
+    // BigEndian version have 32 padding
+    endian: Endian,
+    // we do this because we don't want to apply padding to last
+    // file, in this way each call to `apply_padding` will apply
+    // last padding instead of current want and keep the current
+    // one for next call
+    // not a good way, but good enough
+    last_padding: Option<u32>,
 }
 
 impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
@@ -217,7 +237,16 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
             Entry::File(u_entry),
         ) = (&mut entries[o_entry_idx].kind, u_entry)
         {
-            self.process_file(entries[o_entry_idx].name_crc32, o_entry, u_entry)
+            if self.endian == Endian::Big {
+                self.apply_padding()?;
+            }
+
+            self.process_file(entries[o_entry_idx].name_crc32, o_entry, u_entry)?;
+
+            if self.endian == Endian::Big {
+                self.caculate_padding();
+            }
+            Ok(())
         } else if let (obscure2::EntryKind::Directory(o_entry), Entry::Dir(u_entry)) =
             (&entries[o_entry_idx].kind, u_entry)
         {
@@ -268,7 +297,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
             self.offset += bytes.len() as u32;
             o_entry.compressed_size = bytes.len() as _;
             o_entry.uncompressed_size = bytes.len() as _;
-            o_entry.checksum = checksum::bytes_sum(&bytes);
+            o_entry.checksum = checksum::bytes_sum(&bytes, self.endian);
             return Ok(());
         }
 
@@ -278,7 +307,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
         self.offset += compressed_bytes.len() as u32;
         o_entry.compressed_size = compressed_bytes.len() as _;
         o_entry.uncompressed_size = bytes.len() as _;
-        o_entry.checksum = checksum::bytes_sum(&compressed_bytes);
+        o_entry.checksum = checksum::bytes_sum(&compressed_bytes, self.endian);
 
         Ok(())
     }
@@ -296,6 +325,23 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
             };
 
             self.process_entry(o_entry_idx, u_entry, entries)?;
+        }
+
+        Ok(())
+    }
+
+    #[inline]
+    fn caculate_padding(&mut self) {
+        if self.offset % 32 != 0 {
+            self.last_padding = Some(32 - (self.offset % 32))
+        }
+    }
+
+    #[inline]
+    fn apply_padding(&mut self) -> std::io::Result<()> {
+        if let Some(pad) = self.last_padding.take() {
+            std::io::copy(&mut std::io::repeat(0).take(pad as _), self.writer)?;
+            self.offset += pad;
         }
 
         Ok(())

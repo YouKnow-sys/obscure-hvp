@@ -38,6 +38,9 @@ pub struct Commands {
     /// skip checking for modified files and just update all files
     #[arg(long, short = 'a', default_value_t = false, required = false)]
     pub update_all_files: bool,
+    /// create archive even when no files changed
+    #[arg(long, default_value_t = false, required = false)]
+    pub generate_anyway: bool,
 }
 
 impl Commands {
@@ -74,6 +77,10 @@ impl Commands {
         println!("{} output hvp archive: {}", "[+]".green(), output.display());
 
         let files = utils::list_files(&self.input_folder, true);
+
+        if files.is_empty() && self.generate_anyway {
+            anyhow::bail!("no file found in input folder")
+        }
 
         let org_working_dir =
             std::env::current_dir().context("failed to get current working directory")?;
@@ -152,7 +159,7 @@ impl Commands {
             files
         };
 
-        if files.is_empty() {
+        if files.is_empty() && !self.generate_anyway {
             anyhow::bail!("no modified file found, so there is nothing to import. aborting")
         }
 
@@ -168,8 +175,13 @@ impl Commands {
             updated = true;
         }
 
-        if !updated {
+        if !updated && !self.generate_anyway {
             anyhow::bail!("nothing in the archive updated. aborting")
+        } else if self.generate_anyway {
+            println!(
+                "{} updated nothing in the archive, rebuilding anyway",
+                "[+]".green()
+            );
         }
 
         println!(

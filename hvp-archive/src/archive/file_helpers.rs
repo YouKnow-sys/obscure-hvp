@@ -55,6 +55,7 @@ impl<'a, 'p> Iterator for FileIterator<'a, 'p> {
                         path,
                         compression_info: file_entry.compression_info,
                         checksum: file_entry.checksum,
+                        endian: file_entry.endian,
                         raw_bytes: file_entry.raw_bytes,
                     };
 

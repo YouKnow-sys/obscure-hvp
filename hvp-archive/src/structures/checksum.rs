@@ -1,11 +1,18 @@
 //! a checksum that obscure games use
 
-pub fn bytes_sum(data: &[u8]) -> i32 {
+use binrw::Endian;
+
+pub fn bytes_sum(data: &[u8], endian: Endian) -> i32 {
     let chunks = data.chunks_exact(4);
     let remainder = chunks.remainder();
 
+    let func = match endian {
+        Endian::Big => i32::from_be_bytes,
+        Endian::Little => i32::from_le_bytes,
+    };
+
     let chunks_sum: i32 = chunks
-        .map(|chunk| i32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]))
+        .map(|chunk| func([chunk[0], chunk[1], chunk[2], chunk[3]]))
         .fold(0i32, |acc, val| acc.wrapping_add(val));
 
     let remainder_sum: i32 = remainder

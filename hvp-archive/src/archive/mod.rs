@@ -59,9 +59,12 @@ impl<'p> Archive<'p> {
     pub fn new_with_options(provider: &'p ArchiveProvider, options: Options) -> Self {
         let (entries, metadata) = match &provider.raw_archive {
             RawArchive::Obscure1(hvp) => obscure1::map_entries(provider, &hvp.entries),
-            RawArchive::Obscure2(hvp) => {
-                obscure2::map_entries(provider, hvp.entries(), &options.obscure2_names)
-            }
+            RawArchive::Obscure2(hvp) => obscure2::map_entries(
+                provider,
+                &hvp.entries,
+                hvp.endian(),
+                &options.obscure2_names,
+            ),
         };
 
         Self {
@@ -99,10 +102,14 @@ impl<'p> Archive<'p> {
 
     /// check whatever checksum of all entries are valid or not.
     pub fn entries_checksum_match(&self) -> bool {
-        self.entries.iter().all(|entry| match entry {
-            Entry::File(file_entry) => file_entry.checksum_match(),
-            Entry::Dir(_) => true,
-        })
+        fn check_entry(entry: &Entry) -> bool {
+            match entry {
+                Entry::File(entry) => entry.checksum_match(),
+                Entry::Dir(entry) => entry.entries.iter().all(check_entry),
+            }
+        }
+
+        self.entries.iter().all(check_entry)
     }
 
     /// get the metadata about the current loaded archive
