@@ -288,7 +288,7 @@ checksum = "f154ce46856750ed433c8649605bf7ed2de3bc35fd9d2a9f30cddd873c80cb08"
 
 [[package]]
 name = "hvp-archive"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "ahash",
  "binrw",

@@ -105,24 +105,18 @@ impl ArchiveProvider {
 fn validate_entries(raw_archive: &RawArchive, mmap: &[u8]) -> bool {
     match raw_archive {
         RawArchive::Obscure1(archive) => {
-            fn check_entry(e: &obscure1::Entry, mmap: &[u8]) -> bool {
+            fn check_entry(e: &obscure1::Entry, len: usize) -> bool {
                 match &e.kind {
-                    obscure1::EntryKind::Dir(e) => check_dir(e, mmap),
-                    obscure1::EntryKind::File(e) => check_file(e, mmap),
+                    obscure1::EntryKind::Dir(e) => e.entries.iter().all(|e| check_entry(e, len)),
+                    obscure1::EntryKind::File(e) => {
+                        // somehow entries with uncompressed size zero have crazy compressed sizes
+                        // so we just ignore them
+                        e.uncompressed_size == 0 || (e.offset + e.compressed_size) as usize <= len
+                    }
                 }
             }
 
-            fn check_file(e: &obscure1::FileEntry, mmap: &[u8]) -> bool {
-                // somehow entries with uncompressed size zero have crazy compressed sizes
-                // so we just ignore them
-                e.uncompressed_size == 0 || (e.offset + e.compressed_size) as usize <= mmap.len()
-            }
-
-            fn check_dir(e: &obscure1::DirEntry, mmap: &[u8]) -> bool {
-                e.entries.iter().all(|e| check_entry(e, mmap))
-            }
-
-            archive.entries.iter().all(|e| check_entry(e, mmap))
+            archive.entries.iter().all(|e| check_entry(e, mmap.len()))
         }
         RawArchive::Obscure2(archive) => archive.entries.iter().all(|e| match &e.kind {
             obscure2::EntryKind::File(file) | obscure2::EntryKind::FileCompressed(file) => {
