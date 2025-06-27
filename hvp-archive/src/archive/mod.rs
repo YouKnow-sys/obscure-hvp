@@ -60,7 +60,7 @@ impl<'p> Archive<'p> {
         let (entries, metadata) = match &provider.raw_archive {
             RawArchive::Obscure1(hvp) => obscure1::map_entries(provider, &hvp.entries),
             RawArchive::Obscure2(hvp) => {
-                obscure2::map_entries(provider, &hvp.entries, &options.obscure2_names)
+                obscure2::map_entries(provider, &hvp.entries(), &options.obscure2_names)
             }
         };
 

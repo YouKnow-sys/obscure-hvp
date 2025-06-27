@@ -1,7 +1,6 @@
 use std::io::Write;
 use std::ops::Range;
 
-use binrw::Endian;
 use lzokay_native::Dict;
 
 use super::Metadata;
@@ -158,7 +157,7 @@ pub fn update_entries<W: Write, P: RebuildProgress>(
 ) -> Result<obscure2::HvpArchive, RebuildError> {
     // we ignore the root dir, because it really don't serve any purpose except adding one layer of nesting
     // we can manually add it when we are writing the entries back
-    let root_count = match &archive.entries[0] {
+    let root_count = match &archive.entries()[0] {
         obscure2::Entry {
             name_crc32: 0,
             kind:
@@ -184,10 +183,10 @@ pub fn update_entries<W: Write, P: RebuildProgress>(
             unreachable!("number of parsed entries doesn't match with original entries");
         };
 
-        updater.process_entry(o_entry_idx, u_entry, &mut archive.entries)?;
+        updater.process_entry(o_entry_idx, u_entry, archive.entries_mut())?;
     }
 
-    archive.update_checksums(Endian::Little).unwrap();
+    archive.update_checksums().unwrap();
 
     Ok(archive)
 }

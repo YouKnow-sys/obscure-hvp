@@ -73,6 +73,11 @@ impl Commands {
 
         println!("{} output hvp archive: {}", "[+]".green(), output.display());
 
+        let files = utils::list_files(&self.input_folder, true);
+
+        let org_working_dir =
+            std::env::current_dir().context("failed to get current working directory")?;
+
         // we do this so we don't have to join output dir with entry path each time
         println!(
             "{} changing working directory to input folder",
@@ -80,8 +85,6 @@ impl Commands {
         );
         std::env::set_current_dir(&self.input_folder)
             .context("failed to change working directory to output path")?;
-
-        let files = utils::list_files(&self.input_folder, true);
 
         print!(
             "{} found {} files in input folder",
@@ -174,9 +177,16 @@ impl Commands {
             "[+]".green()
         );
 
+        // this is hacky but it'll work
+        std::env::set_current_dir(org_working_dir)
+            .context("failed to change working directory to original base path")?;
+
         let mut writer = BufWriter::new(
             File::create(output).context("failed to create output hvp archive file")?,
         );
+
+        std::env::set_current_dir(&self.input_folder)
+            .context("failed to change working directory to output path")?;
 
         let pb = utils::progress_bar(archive.metadata().file_count as _);
         let progress = RebuildProgressCli(pb.clone());

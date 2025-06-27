@@ -9,7 +9,20 @@ use super::common;
 #[binrw]
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
-pub struct HvpArchive {
+#[brw(little)] // doesn't really matter
+pub enum HvpArchive {
+    #[brw(magic = b"\x00\x00\x04\x00")]
+    #[brw(little)]
+    LittleEndian(HvpArchiveInner),
+    #[brw(magic = b"\x00\x04\x00\x00")]
+    #[brw(big)]
+    BigEndian(HvpArchiveInner),
+}
+
+#[binrw]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
+pub struct HvpArchiveInner {
     pub header: Header,
     #[br(count  = header.entries_count)]
     #[br(assert(have_root_entry(&entries), "invalid obscure 2 hvp, archive should start with a root directory entry"))]
@@ -17,10 +30,47 @@ pub struct HvpArchive {
 }
 
 impl HvpArchive {
-    pub fn update_checksums(&mut self, endian: Endian) -> BinResult<()> {
+    #[inline(always)]
+    pub fn entries(&self) -> &[Entry] {
+        match self {
+            HvpArchive::LittleEndian(inner) => &inner.entries,
+            HvpArchive::BigEndian(inner) => &inner.entries,
+        }
+    }
+
+    #[inline(always)]
+    pub fn entries_mut(&mut self) -> &mut [Entry] {
+        match self {
+            HvpArchive::LittleEndian(inner) => &mut inner.entries,
+            HvpArchive::BigEndian(inner) => &mut inner.entries,
+        }
+    }
+
+    #[cfg(feature = "raw_structure")]
+    pub fn header(&self) -> &Header {
+        match self {
+            HvpArchive::LittleEndian(inner) => &inner.header,
+            HvpArchive::BigEndian(inner) => &inner.header,
+        }
+    }
+
+    pub fn header_mut(&mut self) -> &mut Header {
+        match self {
+            HvpArchive::LittleEndian(inner) => &mut inner.header,
+            HvpArchive::BigEndian(inner) => &mut inner.header,
+        }
+    }
+
+    pub fn update_checksums(&mut self) -> BinResult<()> {
         let mut writer = common::DummyCrc32Writer::new();
-        self.entries.write_options(&mut writer, endian, ())?;
-        self.header.entries_crc32 = writer.checksum();
+
+        let (entries, endian) = match self {
+            HvpArchive::LittleEndian(inner) => (&inner.entries, Endian::Little),
+            HvpArchive::BigEndian(inner) => (&inner.entries, Endian::Big),
+        };
+
+        entries.write_options(&mut writer, endian, ())?;
+        self.header_mut().entries_crc32 = writer.checksum();
         Ok(())
     }
 }
@@ -28,7 +78,6 @@ impl HvpArchive {
 #[binrw]
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
-#[brw(magic = b"\x00\x00\x04\x00")]
 pub struct Header {
     #[br(assert(zero == 0))]
     zero: u32,
@@ -50,11 +99,11 @@ pub struct Entry {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
 pub enum EntryKind {
-    #[brw(magic = 0u32)]
+    #[brw(magic = 0u16)]
     File(FileEntry),
-    #[brw(magic = 1u32)]
+    #[brw(magic = 1u16)]
     FileCompressed(FileEntry),
-    #[brw(magic = 4u32)]
+    #[brw(magic = 4u16)]
     Directory(DirEntry),
 }
 
@@ -62,6 +111,8 @@ pub enum EntryKind {
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
 pub struct FileEntry {
+    #[br(assert(zero == 0))]
+    zero: i16,
     pub checksum: i32,
     pub uncompressed_size: u32,
     pub offset: u32,
@@ -73,9 +124,11 @@ pub struct FileEntry {
 #[cfg_attr(feature = "raw_structure", derive(serde::Serialize))]
 pub struct DirEntry {
     #[br(assert(zero1 == 0))]
-    pub(crate) zero1: u32,
+    zero1: i16,
     #[br(assert(zero2 == 0))]
-    pub(crate) zero2: u32,
+    zero2: u32,
+    #[br(assert(zero3 == 0))]
+    zero3: u32,
     #[br(assert(count > 0, "invalid archive, directory can't have zero entries"))]
     pub count: u32,
     pub index: u32,

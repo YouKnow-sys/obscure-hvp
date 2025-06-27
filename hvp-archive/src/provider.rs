@@ -57,7 +57,7 @@ impl ArchiveProvider {
 
         let raw_archive = match game {
             Game::Obscure1 => RawArchive::Obscure1(obscure1::HvpArchive::read_be(&mut reader)?),
-            Game::Obscure2 => RawArchive::Obscure2(obscure2::HvpArchive::read_le(&mut reader)?),
+            Game::Obscure2 => RawArchive::Obscure2(obscure2::HvpArchive::read(&mut reader)?),
         };
 
         let entries_offset = reader.stream_position()? as usize;
@@ -124,7 +124,7 @@ fn validate_entries(raw_archive: &RawArchive, mmap: &[u8]) -> bool {
 
             archive.entries.iter().all(|e| check_entry(e, mmap))
         }
-        RawArchive::Obscure2(archive) => archive.entries.iter().all(|e| match &e.kind {
+        RawArchive::Obscure2(archive) => archive.entries().iter().all(|e| match &e.kind {
             obscure2::EntryKind::File(file) | obscure2::EntryKind::FileCompressed(file) => {
                 (file.offset + file.compressed_size) as usize <= mmap.len()
             }
