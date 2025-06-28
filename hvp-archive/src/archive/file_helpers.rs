@@ -12,6 +12,7 @@ struct StackFrame<E> {
     depth: usize,
 }
 
+/// a iterator over files inside the archive
 pub struct FileIterator<'a, 'p> {
     stack: VecDeque<StackFrame<&'a Entry<'p>>>,
     path_stack: Vec<&'a str>,
@@ -91,6 +92,8 @@ impl<'a, 'p> ExactSizeIterator for FileIterator<'a, 'p> {
     }
 }
 
+/// a iterator over files inside the archive.
+/// this iterator give mutable access to the files.
 pub struct FileIteratorMut<'a, 'p> {
     stack: VecDeque<StackFrame<&'a mut Entry<'p>>>,
     path_stack: Vec<&'a str>,

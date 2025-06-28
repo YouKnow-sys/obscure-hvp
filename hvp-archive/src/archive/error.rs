@@ -1,5 +1,6 @@
 use std::io;
 
+/// errors that can happen during rebuilding of a archive
 #[derive(Debug, thiserror::Error)]
 pub enum RebuildError {
     #[error(transparent)]

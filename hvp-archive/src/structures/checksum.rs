@@ -1,4 +1,4 @@
-//! a checksum that obscure games use
+//! custom checksum that obscure games use
 
 use binrw::Endian;
 

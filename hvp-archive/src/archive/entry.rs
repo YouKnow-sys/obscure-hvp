@@ -9,6 +9,8 @@ use binrw::Endian;
 
 use crate::structures;
 
+/// you can just put the bytes that you want the archive to update from here
+/// or a path to a file
 #[derive(Clone)]
 pub enum UpdateKind {
     Bytes(Vec<u8>),
@@ -34,18 +36,25 @@ impl Debug for UpdateKind {
     }
 }
 
+/// compression type
 #[derive(Debug, Clone, Copy)]
 pub enum CompressionType {
+    /// used by obscure 1
     Zlib,
+    /// used by obscure 2
     Lzo,
 }
 
+/// info about the compression
 #[derive(Debug, Clone, Copy)]
 pub struct CompressionInfo {
     pub uncompressed_size: u32,
     pub compression_type: CompressionType,
 }
 
+/// file entry, contain info about the file and its raw bytes.
+/// can also be used to decompress the bytes if the entry is
+/// compressed.
 #[derive(Clone)]
 pub struct FileEntry<'p> {
     pub(crate) name: String,
@@ -94,6 +103,7 @@ impl Debug for FileEntry<'_> {
     }
 }
 
+/// directory entry, contain the name of directory and entries inside it
 #[derive(Clone)]
 pub struct DirEntry<'p> {
     pub name: String,
@@ -109,6 +119,7 @@ impl Debug for DirEntry<'_> {
     }
 }
 
+/// full file entry contain full path to a file and other infos about it
 pub struct FullFileEntry<'p> {
     pub path: PathBuf,
     pub(super) compression_info: Option<CompressionInfo>,
@@ -148,6 +159,8 @@ impl Debug for FullFileEntry<'_> {
     }
 }
 
+/// full file entry contain full path to a file and a mutable reference to the file itself
+/// that can be used to update it
 pub struct FullFileEntryMut<'a, 'p> {
     pub path: PathBuf,
     pub(crate) entry: &'a mut FileEntry<'p>,
@@ -281,6 +294,7 @@ impl<'p> Entry<'p> {
     }
 }
 
+/// errors that can happen during decompression
 #[derive(Debug, thiserror::Error)]
 pub enum DecompressError {
     #[error("failed to decompress using zlib")]

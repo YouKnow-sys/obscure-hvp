@@ -26,12 +26,14 @@ mod obscure1;
 mod obscure2;
 pub mod rebuild_progress;
 
+/// archive options
 #[derive(Debug, Default)]
 pub struct Options {
     pub obscure2_names: Obscure2NameMap,
     pub rebuild_skip_compression: bool,
 }
 
+/// metadata about the loaded archive
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Metadata {
     pub dir_count: usize,

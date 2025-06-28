@@ -9,6 +9,7 @@ use memmap2::{Mmap, MmapOptions};
 use crate::structures::{obscure1, obscure2};
 use crate::{Game, try_detect_game};
 
+/// provider errors
 #[derive(Debug, thiserror::Error)]
 pub enum ProviderError {
     #[error(transparent)]
@@ -21,18 +22,26 @@ pub enum ProviderError {
     EntryOffsetOrSizeDoesntFit,
 }
 
+/// hold the underlying raw archive
 #[cfg(not(feature = "raw_structure"))]
 pub(crate) enum RawArchive {
     Obscure1(obscure1::HvpArchive),
     Obscure2(obscure2::HvpArchive),
 }
 
+/// hold the underlying raw archive
 #[cfg(feature = "raw_structure")]
 pub enum RawArchive {
     Obscure1(obscure1::HvpArchive),
     Obscure2(obscure2::HvpArchive),
 }
 
+/// archive provider is the main type that load the hvp archives
+///
+/// it support both obscure 1 and 2 and can also autodetect the game
+/// based on archive magic number.
+///
+/// it also validate the entries to make sure that the loaded archive isn't broken.
 pub struct ArchiveProvider {
     pub(crate) raw_archive: RawArchive,
     pub(crate) mmap: Mmap,
@@ -94,7 +103,7 @@ impl ArchiveProvider {
         &self.mmap[0..0]
     }
 
-    /// the underlying raw archive
+    /// retuturn a reference the underlying raw archive
     #[cfg(feature = "raw_structure")]
     pub fn raw_archive(&self) -> &RawArchive {
         &self.raw_archive

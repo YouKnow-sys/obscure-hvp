@@ -1,4 +1,7 @@
 //! obscure 2 hvp archive structure
+//!
+//! support loading both little and big endian version of hvp archive.
+//! we detect the endian based on magic automatically.
 
 use std::{
     io::{Read, Seek, SeekFrom},

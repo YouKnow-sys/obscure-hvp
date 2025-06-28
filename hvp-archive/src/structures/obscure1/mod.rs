@@ -1,4 +1,8 @@
 //! obscure 1 hvp archive structure
+//!
+//! obscure 1 have a strange structure.
+//! the archive itself is in big endian, but for some reason
+//! they decided to use little endian for their custom checksum generation.
 
 use binrw::{Endian, binrw};
 

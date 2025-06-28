@@ -1,5 +1,6 @@
-//! **you are not supposed to use this module directly.**
-//! it's better to instead use `crate::archive`
+//! **you should instead use [`crate::archive`] most of the times**
+//!
+//! use this module if you actually need low level access to archive structure
 
 pub mod obscure1;
 pub mod obscure2;
