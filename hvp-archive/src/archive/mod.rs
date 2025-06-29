@@ -170,7 +170,7 @@ impl<'p> Archive<'p> {
 
                 // write the entries back
                 writer.seek(SeekFrom::Start(start_pos))?;
-                archive.write_le(writer)?;
+                archive.write(writer)?;
             }
         }
 
