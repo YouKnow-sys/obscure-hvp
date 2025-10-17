@@ -278,7 +278,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
 
     #[inline]
     fn caculate_and_apply_padding(&mut self) -> std::io::Result<()> {
-        if self.offset % 4 != 0 {
+        if !self.offset.is_multiple_of(4) {
             let last_padding = 4 - (self.offset % 4);
             std::io::copy(&mut std::io::repeat(0).take(last_padding as _), self.writer)?;
             self.offset += last_padding;

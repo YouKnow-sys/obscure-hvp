@@ -98,11 +98,7 @@ impl Names {
             .next()
             .unwrap();
 
-        let name = std::str::from_utf8(name)
-            .ok()
-            .expect("got invalid name in names section");
-
-        name
+        std::str::from_utf8(name).expect("got invalid name in names section")
     }
 }
 

@@ -327,7 +327,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
 
     #[inline]
     fn caculate_padding(&mut self) {
-        if self.offset % 32 != 0 {
+        if !self.offset.is_multiple_of(32) {
             self.last_padding = Some(32 - (self.offset % 32))
         }
     }
