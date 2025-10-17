@@ -300,7 +300,7 @@ pub enum DecompressError {
     #[error("failed to decompress using zlib")]
     Zlib(#[from] flate2::DecompressError),
     #[error("failed to decompress using lzo")]
-    Lzo(#[from] lzokay_native::Error),
+    Lzo(#[from] lzo1x::DecompressError),
 }
 
 #[inline(always)]
@@ -319,7 +319,11 @@ fn decompress_buf(
             )?;
             output
         }
-        CompressionType::Lzo => lzokay_native::decompress_all(input, Some(uncompressed_size))?,
+        CompressionType::Lzo => {
+            let mut buf = vec![0_u8; uncompressed_size];
+            lzo1x::decompress(input, &mut buf)?;
+            buf
+        }
     };
     Ok(output)
 }

@@ -9,6 +9,4 @@ pub enum RebuildError {
     BinRW(#[from] binrw::Error),
     #[error("zlib compression failed")]
     ZlibCompressionFailed(#[from] flate2::CompressError),
-    #[error("lzo compression failed")]
-    LzoCompressionFailed(#[from] lzokay_native::Error),
 }

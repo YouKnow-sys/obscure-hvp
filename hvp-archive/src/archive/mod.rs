@@ -22,6 +22,7 @@ use rebuild_progress::RebuildProgress;
 pub mod entry;
 pub mod error;
 pub mod file_helpers;
+mod final_exam;
 mod obscure1;
 mod obscure2;
 pub mod rebuild_progress;
@@ -67,6 +68,9 @@ impl<'p> Archive<'p> {
                 hvp.endian(),
                 &options.obscure2_names,
             ),
+            RawArchive::FinalExam(hvp) => {
+                final_exam::map_entries(provider, &hvp.entries, hvp.endian(), &hvp.names)
+            }
         };
 
         Self {
@@ -172,6 +176,21 @@ impl<'p> Archive<'p> {
                 writer.seek(SeekFrom::Start(start_pos))?;
                 archive.write(writer)?;
             }
+            RawArchive::FinalExam(archive) => {
+                let archive = final_exam::update_entries(
+                    writer,
+                    offset,
+                    self.options.rebuild_skip_compression,
+                    archive.clone(),
+                    &self.entries,
+                    &archive.names,
+                    progress,
+                )?;
+
+                // write the entries back
+                writer.seek(SeekFrom::Start(start_pos))?;
+                archive.write(writer)?;
+            }
         }
 
         Ok(())
@@ -183,6 +202,7 @@ impl<'p> Debug for Archive<'p> {
         let archive_src = match self.provider.raw_archive {
             RawArchive::Obscure1(_) => "obscure1",
             RawArchive::Obscure2(_) => "obscure2",
+            RawArchive::FinalExam(_) => "final_exam",
         };
 
         f.debug_struct("Archive")

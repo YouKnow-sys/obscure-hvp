@@ -9,22 +9,22 @@ use super::error::RebuildError;
 use super::rebuild_progress::RebuildProgress;
 use crate::Game;
 use crate::provider::ArchiveProvider;
-use crate::structures::{checksum, obscure2};
+use crate::structures::{checksum, final_exam};
 
 /// map the entries and return them plus the number of files
 pub fn map_entries<'p>(
     provider: &'p ArchiveProvider,
-    entries: &[obscure2::Entry],
+    entries: &[final_exam::Entry],
     endian: Endian,
-    name_map: &Obscure2NameMap,
+    names: &final_exam::Names,
 ) -> (Vec<Entry<'p>>, Metadata) {
     // we ignore the root dir, because it really don't serve any purpose except adding one layer of nesting
     // we can manually add it when we are writing the entries back
     let root_count = match &entries[0] {
-        obscure2::Entry {
+        final_exam::Entry {
             name_crc32: 0,
             kind:
-                obscure2::EntryKind::Directory(obscure2::DirEntry {
+                final_exam::EntryKind::Directory(final_exam::DirEntry {
                     index: 1, count, ..
                 }),
         } => *count as usize,
@@ -35,11 +35,11 @@ pub fn map_entries<'p>(
         provider,
         entries,
         endian,
-        name_map,
+        names,
         metadata: Metadata {
             dir_count: 0,
             file_count: 0,
-            game: Game::Obscure2,
+            game: Game::FinalExam,
         },
     };
 
@@ -51,43 +51,27 @@ pub fn map_entries<'p>(
     (entries, process.metadata)
 }
 
-/// a helper for processing obscure 2 entries
+/// a helper for processing final exam entries
 struct Process<'p, 'e, 'n> {
     provider: &'p ArchiveProvider,
-    entries: &'e [obscure2::Entry],
+    entries: &'e [final_exam::Entry],
     endian: Endian,
-    name_map: &'n Obscure2NameMap,
+    names: &'n final_exam::Names,
     metadata: Metadata,
 }
 
 impl<'p> Process<'p, '_, '_> {
     #[inline]
-    fn process_entry(&mut self, entry: &obscure2::Entry) -> Entry<'p> {
+    fn process_entry(&mut self, entry: &final_exam::Entry) -> Entry<'p> {
         match &entry.kind {
-            obscure2::EntryKind::File(file) => self.process_file(file, entry.name_crc32, false),
-            obscure2::EntryKind::FileCompressed(file) => {
-                self.process_file(file, entry.name_crc32, true)
-            }
-            obscure2::EntryKind::Directory(dir) => {
-                self.process_dir(entry.name_crc32, dir, dir.entries_range())
-            }
+            final_exam::EntryKind::File(file) => self.process_file(file, false),
+            final_exam::EntryKind::FileCompressed(file) => self.process_file(file, true),
+            final_exam::EntryKind::Directory(dir) => self.process_dir(dir, dir.entries_range()),
         }
     }
 
-    fn process_file(
-        &mut self,
-        entry: &obscure2::FileEntry,
-        name_crc32: u32,
-        is_compressed: bool,
-    ) -> Entry<'p> {
-        let name = self
-            .name_map
-            .get_name(name_crc32)
-            .map(str::to_owned)
-            .unwrap_or_else(|| {
-                log::warn!("unknown obscure2 file hash {name_crc32}");
-                format!("unk_file_{name_crc32}.dat")
-            });
+    fn process_file(&mut self, entry: &final_exam::FileEntry, is_compressed: bool) -> Entry<'p> {
+        let name = self.names.get_name_by_offset(entry.name_offset).to_owned();
 
         self.metadata.file_count += 1;
 
@@ -106,20 +90,8 @@ impl<'p> Process<'p, '_, '_> {
         })
     }
 
-    fn process_dir(
-        &mut self,
-        name_crc32: u32,
-        entry: &obscure2::DirEntry,
-        range: Range<usize>,
-    ) -> Entry<'p> {
-        let name = self
-            .name_map
-            .get_name(name_crc32)
-            .map(str::to_owned)
-            .unwrap_or_else(|| {
-                log::warn!("unknown obscure2 dir hash {name_crc32}");
-                format!("unk_folder_{name_crc32}")
-            });
+    fn process_dir(&mut self, entry: &final_exam::DirEntry, range: Range<usize>) -> Entry<'p> {
+        let name = self.names.get_name_by_offset(entry.name_offset).to_owned();
 
         let mut dir = DirEntry {
             name,
@@ -130,18 +102,15 @@ impl<'p> Process<'p, '_, '_> {
 
         for e in &self.entries[range] {
             match &e.kind {
-                obscure2::EntryKind::File(file_entry) => {
-                    dir.entries
-                        .push(self.process_file(file_entry, e.name_crc32, false))
+                final_exam::EntryKind::File(file_entry) => {
+                    dir.entries.push(self.process_file(file_entry, false))
                 }
-                obscure2::EntryKind::FileCompressed(file_entry) => dir
+                final_exam::EntryKind::FileCompressed(file_entry) => {
+                    dir.entries.push(self.process_file(file_entry, true))
+                }
+                final_exam::EntryKind::Directory(dir_entry) => dir
                     .entries
-                    .push(self.process_file(file_entry, e.name_crc32, true)),
-                obscure2::EntryKind::Directory(dir_entry) => dir.entries.push(self.process_dir(
-                    e.name_crc32,
-                    dir_entry,
-                    dir_entry.entries_range(),
-                )),
+                    .push(self.process_dir(dir_entry, dir_entry.entries_range())),
             }
         }
 
@@ -154,18 +123,18 @@ pub fn update_entries<W: Write, P: RebuildProgress>(
     writer: &mut W,
     offset: u32,
     skip_compression: bool,
-    mut archive: obscure2::HvpArchive,
+    mut archive: final_exam::HvpArchive,
     entries: &[Entry],
-    name_map: &Obscure2NameMap,
+    names: &final_exam::Names,
     progress: P,
-) -> Result<obscure2::HvpArchive, RebuildError> {
+) -> Result<final_exam::HvpArchive, RebuildError> {
     // we ignore the root dir, because it really don't serve any purpose except adding one layer of nesting
     // we can manually add it when we are writing the entries back
     let root_count = match &archive.entries[0] {
-        obscure2::Entry {
+        final_exam::Entry {
             name_crc32: 0,
             kind:
-                obscure2::EntryKind::Directory(obscure2::DirEntry {
+                final_exam::EntryKind::Directory(final_exam::DirEntry {
                     index: 1, count, ..
                 }),
         } => *count as usize,
@@ -177,15 +146,11 @@ pub fn update_entries<W: Write, P: RebuildProgress>(
         progress,
         offset,
         skip_compression,
-        name_map,
+        names,
         endian: archive.endian(),
-        last_padding: None,
     };
 
-    if updater.endian == Endian::Big {
-        // we need to apply padding after the entris
-        updater.caculate_padding();
-    }
+    updater.caculate_and_apply_padding()?;
 
     let mut entries_iter = entries.iter();
     for o_entry_idx in 1..1 + root_count {
@@ -205,15 +170,9 @@ pub struct Updater<'a, 'n, W: Write, P: RebuildProgress> {
     progress: P,
     offset: u32,
     skip_compression: bool,
-    name_map: &'n Obscure2NameMap,
+    names: &'n final_exam::Names,
     // BigEndian version have 32 padding
     endian: Endian,
-    // we do this because we don't want to apply padding to last
-    // file, in this way each call to `apply_padding` will apply
-    // last padding instead of current want and keep the current
-    // one for next call
-    // not a good way, but good enough
-    last_padding: Option<u32>,
 }
 
 impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
@@ -221,28 +180,22 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
         &mut self,
         o_entry_idx: usize,
         u_entry: &Entry,
-        entries: &mut [obscure2::Entry],
+        entries: &mut [final_exam::Entry],
     ) -> Result<(), RebuildError> {
         // at points like this I say to myself, wtf is rust about...
         // not being able to have multiple mutable borrow to same value made me
-        // to write the code like this... and onee useless clone as well...
+        // to write the code like this... and one useless clone as well...
         // this sucks!
         if let (
-            obscure2::EntryKind::FileCompressed(o_entry) | obscure2::EntryKind::File(o_entry),
+            final_exam::EntryKind::FileCompressed(o_entry) | final_exam::EntryKind::File(o_entry),
             Entry::File(u_entry),
         ) = (&mut entries[o_entry_idx].kind, u_entry)
         {
-            if self.endian == Endian::Big {
-                self.apply_padding()?;
-            }
+            self.process_file(o_entry, u_entry)?;
+            self.caculate_and_apply_padding()?;
 
-            self.process_file(entries[o_entry_idx].name_crc32, o_entry, u_entry)?;
-
-            if self.endian == Endian::Big {
-                self.caculate_padding();
-            }
             Ok(())
-        } else if let (obscure2::EntryKind::Directory(o_entry), Entry::Dir(u_entry)) =
+        } else if let (final_exam::EntryKind::Directory(o_entry), Entry::Dir(u_entry)) =
             (&entries[o_entry_idx].kind, u_entry)
         {
             self.process_dir(u_entry, o_entry.entries_range(), entries)
@@ -253,8 +206,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
 
     fn process_file(
         &mut self,
-        name_crc32: u32,
-        o_entry: &mut obscure2::FileEntry,
+        o_entry: &mut final_exam::FileEntry,
         u_entry: &FileEntry,
     ) -> Result<(), RebuildError> {
         assert_eq!(
@@ -263,10 +215,9 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
         );
 
         let name = self
-            .name_map
-            .get_name(name_crc32)
-            .map(str::to_owned)
-            .unwrap_or_else(|| format!("unk_file_{name_crc32}.dat"));
+            .names
+            .get_name_by_offset(o_entry.name_offset)
+            .to_owned();
 
         if o_entry.uncompressed_size == 0 {
             self.progress.inc(Some(format!("(skp) {name}")));
@@ -296,7 +247,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
             return Ok(());
         }
 
-        let compressed_bytes = lzo1x::compress(&bytes, lzo1x::CompressLevel::default());
+        let compressed_bytes = lzo1x::compress(&bytes, lzo1x::CompressLevel::new(12));
 
         self.writer.write_all(&compressed_bytes)?;
         self.offset += compressed_bytes.len() as u32;
@@ -311,7 +262,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
         &mut self,
         u_entry: &DirEntry,
         range: Range<usize>,
-        entries: &mut [obscure2::Entry],
+        entries: &mut [final_exam::Entry],
     ) -> Result<(), RebuildError> {
         let mut entries_iter = u_entry.entries.iter();
         for o_entry_idx in range {
@@ -326,86 +277,13 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
     }
 
     #[inline]
-    fn caculate_padding(&mut self) {
-        if self.offset % 32 != 0 {
-            self.last_padding = Some(32 - (self.offset % 32))
-        }
-    }
-
-    #[inline]
-    fn apply_padding(&mut self) -> std::io::Result<()> {
-        if let Some(pad) = self.last_padding.take() {
-            std::io::copy(&mut std::io::repeat(0).take(pad as _), self.writer)?;
-            self.offset += pad;
+    fn caculate_and_apply_padding(&mut self) -> std::io::Result<()> {
+        if self.offset % 4 != 0 {
+            let last_padding = 4 - (self.offset % 4);
+            std::io::copy(&mut std::io::repeat(0).take(last_padding as _), self.writer)?;
+            self.offset += last_padding;
         }
 
         Ok(())
-    }
-}
-
-/// obscure 2 name map
-#[derive(Debug, Default)]
-pub struct Obscure2NameMap(ahash::HashMap<u32, String>);
-
-impl Obscure2NameMap {
-    pub fn new<I>(names: I) -> Self
-    where
-        I: IntoIterator,
-        I::Item: AsRef<str>,
-    {
-        let map = names
-            .into_iter()
-            .map(|n| {
-                let name = n.as_ref().to_owned();
-                let crc32 = get_name_crc32(&name);
-
-                (crc32, name)
-            })
-            .collect();
-
-        Self(map)
-    }
-
-    /// get a name using crc32 of it
-    pub fn get_name(&self, crc32: u32) -> Option<&str> {
-        self.0.get(&crc32).map(String::as_str)
-    }
-
-    pub fn get_crc32_from_name(&self, name: &str) -> u32 {
-        let crc32 = get_name_crc32(name);
-
-        debug_assert!(
-            self.0.is_empty() || self.0.contains_key(&crc32),
-            "can't find input name crc32 in the namemap"
-        );
-
-        crc32
-    }
-}
-
-#[inline]
-fn get_name_crc32(name: &str) -> u32 {
-    if name.contains('é') {
-        // we do this because of windows-1250 encoding
-        // as far as I checked names may only have 'é', so
-        // no need to use crates like `encoding_rs`
-        let bytes: Vec<u8> = name
-            .chars()
-            .map(|ch| match ch {
-                'é' => 0xE9,
-                c => {
-                    assert!(
-                        c.is_ascii(),
-                        "found a character that isn't ascii when generating crc32 of name"
-                    );
-
-                    c as u8
-                }
-            })
-            .collect();
-
-        crc32fast::hash(&bytes)
-    } else {
-        crc32fast::hash(name.as_bytes())
     }
 }

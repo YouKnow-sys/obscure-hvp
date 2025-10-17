@@ -6,7 +6,7 @@ use std::{
 use binrw::{BinRead, io::BufReader};
 use memmap2::{Mmap, MmapOptions};
 
-use crate::structures::{obscure1, obscure2};
+use crate::structures::{final_exam, obscure1, obscure2};
 use crate::{Game, try_detect_game};
 
 /// provider errors
@@ -27,6 +27,7 @@ pub enum ProviderError {
 pub(crate) enum RawArchive {
     Obscure1(obscure1::HvpArchive),
     Obscure2(obscure2::HvpArchive),
+    FinalExam(final_exam::HvpArchive),
 }
 
 /// hold the underlying raw archive
@@ -34,6 +35,7 @@ pub(crate) enum RawArchive {
 pub enum RawArchive {
     Obscure1(obscure1::HvpArchive),
     Obscure2(obscure2::HvpArchive),
+    FinalExam(final_exam::HvpArchive),
 }
 
 /// archive provider is the main type that load the hvp archives
@@ -67,6 +69,7 @@ impl ArchiveProvider {
         let raw_archive = match game {
             Game::Obscure1 => RawArchive::Obscure1(obscure1::HvpArchive::read_be(&mut reader)?),
             Game::Obscure2 => RawArchive::Obscure2(obscure2::HvpArchive::read(&mut reader)?),
+            Game::FinalExam => RawArchive::FinalExam(final_exam::HvpArchive::read(&mut reader)?),
         };
 
         let entries_offset = reader.stream_position()? as usize;
@@ -129,6 +132,12 @@ fn validate_entries(raw_archive: &RawArchive, mmap: &[u8]) -> bool {
         }
         RawArchive::Obscure2(archive) => archive.entries.iter().all(|e| match &e.kind {
             obscure2::EntryKind::File(file) | obscure2::EntryKind::FileCompressed(file) => {
+                (file.offset + file.compressed_size) as usize <= mmap.len()
+            }
+            _ => true,
+        }),
+        RawArchive::FinalExam(archive) => archive.entries.iter().all(|e| match &e.kind {
+            final_exam::EntryKind::File(file) | final_exam::EntryKind::FileCompressed(file) => {
                 (file.offset + file.compressed_size) as usize <= mmap.len()
             }
             _ => true,

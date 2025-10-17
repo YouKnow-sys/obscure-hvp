@@ -33,6 +33,34 @@ fn autodetect_obscure2() {
 }
 
 #[test]
+fn autodetect_obscure2_wii() {
+    let obscure2_wii = {
+        let mut file = File::open(constants::OBSCURE2_WII_HVP).expect("failed to open file");
+        try_detect_game(&mut file).expect("failed to parse obscure2 wii archive")
+    };
+
+    assert_eq!(
+        obscure2_wii,
+        Some(Game::Obscure2),
+        "failed to detect obscure2 wii hvp archive"
+    );
+}
+
+#[test]
+fn autodetect_final_exam() {
+    let final_exam = {
+        let mut file = File::open(constants::FINAL_EXAM_HVP).expect("failed to open file");
+        try_detect_game(&mut file).expect("failed to parse final exam archive")
+    };
+
+    assert_eq!(
+        final_exam,
+        Some(Game::FinalExam),
+        "failed to detect final exam hvp archive"
+    );
+}
+
+#[test]
 fn autodetect_invalid() {
     let invalid = {
         let mut reader = Cursor::new([0, 0, 0, 0, 0, 0, 0, 0]);

@@ -14,4 +14,5 @@ mod utils;
 pub enum Game {
     Obscure1,
     Obscure2,
+    FinalExam,
 }

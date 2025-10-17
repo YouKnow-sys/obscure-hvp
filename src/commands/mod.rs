@@ -82,6 +82,8 @@ pub enum Game {
     Obscure1,
     /// Obscure 2 game
     Obscure2,
+    /// Final Exam game
+    FinalExam,
 }
 
 impl From<Game> for Option<hvp_archive::Game> {
@@ -90,6 +92,7 @@ impl From<Game> for Option<hvp_archive::Game> {
             Game::Auto => None,
             Game::Obscure1 => Some(hvp_archive::Game::Obscure1),
             Game::Obscure2 => Some(hvp_archive::Game::Obscure2),
+            Game::FinalExam => Some(hvp_archive::Game::FinalExam),
         }
     }
 }

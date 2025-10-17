@@ -15,6 +15,9 @@ pub fn try_detect_game<R: Read + Seek>(reader: &mut R) -> std::io::Result<Option
         b"\x00\x00\x04\x00\x00\x00\x00\x00" | b"\x00\x04\x00\x00\x00\x00\x00\x00" => {
             Ok(Some(Game::Obscure2))
         }
+        b"\x00\x00\x05\x00\x00\x00\x00\x00" | b"\x00\x05\x00\x00\x00\x00\x00\x00" => {
+            Ok(Some(Game::FinalExam))
+        }
         _ => Ok(None),
     }
 }

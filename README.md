@@ -1,7 +1,7 @@
 <h1 align="center">Obscure HVP tool</h1>
 
 <p align="center">
-  <b>A simple CLI tool to extract and create hvp archives from obscure game series</b></br>
+  <b>A simple CLI tool to extract and create hvp archives from obscure game series and Final Exam</b></br>
   <sub>Support PC, PS2, PSP and Wii versions</sub>
 </p>
 
@@ -22,10 +22,11 @@
 
 ## Supported Games
 
-| Game                     | Status        | Platforms          |
-|--------------------------|---------------|--------------------|
-| Obscure 1                | Supported ✅  | PC, PS2            |
-| Obscure 2                | Supported ✅  | PC, PS2, PSP, Wii  |
+| Game                     | Status        | Platforms                        |
+|--------------------------|---------------|----------------------------------|
+| Obscure 1                | Supported ✅  | PC, PS2                          |
+| Obscure 2                | Supported ✅  | PC, PS2, PSP, Wii                |
+| Final Exam               | Supported ✅  | PC, (and probably PS3, Xbox 360) |
 
 ## Installation
 
