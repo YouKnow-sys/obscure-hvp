@@ -24,7 +24,7 @@
 
 | Game                     | Status        | Platforms                        |
 |--------------------------|---------------|----------------------------------|
-| Obscure 1                | Supported ✅  | PC, PS2                          |
+| Obscure 1                | Supported ✅  | PC, PS2, XBOX                    |
 | Obscure 2                | Supported ✅  | PC, PS2, PSP, Wii                |
 | Final Exam               | Supported ✅  | PC, (and probably PS3, Xbox 360) |
 
