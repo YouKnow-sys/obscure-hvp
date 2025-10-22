@@ -3,6 +3,8 @@ use std::path::Path;
 use clap::Parser;
 use commands::{Commands, Game, Operation, create, extract};
 
+use crate::commands::ChecksumValidation;
+
 mod commands;
 
 fn main() -> anyhow::Result<()> {
@@ -31,14 +33,14 @@ fn main() -> anyhow::Result<()> {
                     input_folder,
                     output: None,
                     skip_compression: false,
-                    skip_checksum_validatation: false,
+                    checksum_validation: ChecksumValidation::Prompt,
                     update_all_files: false,
                     generate_anyway: false,
                 }),
                 None => Operation::Extract(extract::Commands {
                     input: hvp,
                     output_folder: None,
-                    skip_checksum_validatation: false,
+                    checksum_validation: ChecksumValidation::Prompt,
                 }),
             };
 

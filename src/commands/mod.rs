@@ -97,6 +97,17 @@ impl From<Game> for Option<hvp_archive::Game> {
     }
 }
 
+#[derive(ValueEnum, Copy, Clone, Debug, Default, PartialEq, Eq)]
+pub enum ChecksumValidation {
+    /// validate checksums and don't extract files if checksums don't match
+    #[default]
+    Yes,
+    /// skip checksum validation
+    No,
+    /// check checksums, in case of checksum mismatch, ask user if they want to continue
+    Prompt,
+}
+
 fn load_obscure2_name_map() -> Obscure2NameMap {
     match File::open("obscure2_hashes.txt")
         .map(BufReader::new)

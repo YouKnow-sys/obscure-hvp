@@ -16,6 +16,8 @@ use indicatif::{ParallelProgressIterator, ProgressBar};
 use owo_colors::OwoColorize;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
+use crate::commands::ChecksumValidation;
+
 use super::{HASHES_FILE, load_obscure2_name_map, utils};
 
 #[derive(Parser)]
@@ -32,9 +34,9 @@ pub struct Commands {
     /// skip compression of the files
     #[arg(long, short = 'c', default_value_t = false, required = false)]
     pub skip_compression: bool,
-    /// skip checksum validatation
-    #[arg(long, short = 's', default_value_t = false, required = false)]
-    pub skip_checksum_validatation: bool,
+    /// validate checksums of the files
+    #[arg(long, short = 's', default_value_t = ChecksumValidation::Yes, value_enum, required = false)]
+    pub checksum_validation: ChecksumValidation,
     /// skip checking for modified files and just update all files
     #[arg(long, short = 'a', default_value_t = false, required = false)]
     pub update_all_files: bool,
@@ -56,12 +58,37 @@ impl Commands {
 
         utils::print_metadata(archive.metadata());
 
-        if !self.skip_checksum_validatation {
+        if matches!(
+            self.checksum_validation,
+            ChecksumValidation::Yes | ChecksumValidation::Prompt
+        ) {
             println!("{} validating entries checksum", "[+]".green());
-            anyhow::ensure!(
-                archive.entries_checksum_match(),
-                "archive entries checksum doesn't match, maybe the archive is invalid?"
-            )
+            if !archive.entries_checksum_match() {
+                let mut should_exit = true;
+
+                if self.checksum_validation == ChecksumValidation::Prompt {
+                    print!(
+                        "{} checksum mismatch, continue anyway? [y/n]: ",
+                        "[!]".yellow()
+                    );
+                    anstream::stdout().flush()?;
+                    let input = utils::prompt()?.to_lowercase();
+                    match input.as_str() {
+                        "y" => should_exit = false,
+                        "n" => should_exit = true,
+                        _ => {
+                            println!("{} invalid input: '{}'", "[!]".red(), input);
+                            should_exit = true;
+                        }
+                    }
+                }
+
+                if should_exit {
+                    anyhow::bail!(
+                        "archive entries checksum doesn't match, maybe the archive is broken?"
+                    );
+                }
+            }
         }
 
         let output = self.output.unwrap_or_else(|| {
@@ -127,7 +154,11 @@ impl Commands {
                 .collect::<std::io::Result<_>>()
                 .context("failed to generate crc32 of files in input folder")?;
 
-            pb.finish_with_message("checking finished".green().to_string());
+            pb.finish_with_message(
+                "checking finished"
+                    .if_supports_color(owo_colors::Stream::Stdout, |t| t.green())
+                    .to_string(),
+            );
 
             // to remove hashes.json
             let hashes_file = Path::new(HASHES_FILE);
@@ -207,7 +238,11 @@ impl Commands {
             .rebuild(&mut writer, progress)
             .context("failed to rebuild the archive")?;
 
-        pb.finish_with_message("rebuild finished".green().to_string());
+        pb.finish_with_message(
+            "rebuild finished"
+                .if_supports_color(owo_colors::Stream::Stdout, |t| t.green())
+                .to_string(),
+        );
 
         writer.flush().context("failed to flush writer")?;
 

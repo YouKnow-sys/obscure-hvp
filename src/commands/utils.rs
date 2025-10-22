@@ -55,9 +55,6 @@ pub fn print_metadata(metadata: Metadata) {
     )
 }
 
-// FIXME: seems like at the moment indicatif (or console) doesn't detect
-// `NO_COLOR` mode, so even in no color mode progressbar is still colored
-// when upstream fixed it, remember to update the deps.
 pub fn progress_bar(len: u64) -> indicatif::ProgressBar {
     indicatif::ProgressBar::new(len)
         .with_style(
@@ -67,5 +64,21 @@ pub fn progress_bar(len: u64) -> indicatif::ProgressBar {
             .unwrap()
             .progress_chars("=> "),
         )
-        .with_prefix("[P]".green().to_string())
+        .with_prefix(
+            "[P]"
+                .if_supports_color(owo_colors::Stream::Stdout, |t| t.green())
+                .to_string(),
+        )
+}
+
+pub fn prompt() -> anyhow::Result<String> {
+    use std::io::BufRead;
+
+    let stdin = std::io::stdin();
+    let mut stdin = stdin.lock();
+
+    let mut line = String::new();
+    stdin.read_line(&mut line)?;
+
+    Ok(line.trim().to_owned())
 }

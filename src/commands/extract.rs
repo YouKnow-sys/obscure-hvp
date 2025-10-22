@@ -1,4 +1,8 @@
-use std::{fs::File, io::BufWriter, path::PathBuf};
+use std::{
+    fs::File,
+    io::{BufWriter, Write},
+    path::PathBuf,
+};
 
 use anstream::{print, println};
 use anyhow::Context;
@@ -11,7 +15,7 @@ use indicatif::ParallelProgressIterator;
 use owo_colors::OwoColorize;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use super::{HASHES_FILE, load_obscure2_name_map, utils};
+use super::{ChecksumValidation, HASHES_FILE, load_obscure2_name_map, utils};
 
 #[derive(Parser)]
 #[command(arg_required_else_help = true)]
@@ -22,9 +26,9 @@ pub struct Commands {
     /// output folder, if empty a folder with the same name as input will be used
     #[arg(value_hint = ValueHint::DirPath)]
     pub output_folder: Option<PathBuf>,
-    /// skip checksum validatation
-    #[arg(long, short = 's', default_value_t = false, required = false)]
-    pub skip_checksum_validatation: bool,
+    /// validate checksums of the files
+    #[arg(long, short = 's', default_value_t = ChecksumValidation::Yes, value_enum, required = false)]
+    pub checksum_validation: ChecksumValidation,
 }
 
 impl Commands {
@@ -40,12 +44,37 @@ impl Commands {
 
         utils::print_metadata(archive.metadata());
 
-        if !self.skip_checksum_validatation {
+        if matches!(
+            self.checksum_validation,
+            ChecksumValidation::Yes | ChecksumValidation::Prompt
+        ) {
             println!("{} validating entries checksum", "[+]".green());
-            anyhow::ensure!(
-                archive.entries_checksum_match(),
-                "archive entries checksum doesn't match, maybe the archive is invalid?"
-            )
+            if !archive.entries_checksum_match() {
+                let mut should_exit = true;
+
+                if self.checksum_validation == ChecksumValidation::Prompt {
+                    print!(
+                        "{} checksum mismatch, continue anyway? [y/n]: ",
+                        "[!]".yellow()
+                    );
+                    anstream::stdout().flush()?;
+                    let input = utils::prompt()?.to_lowercase();
+                    match input.as_str() {
+                        "y" => should_exit = false,
+                        "n" => should_exit = true,
+                        _ => {
+                            println!("{} invalid input: '{}'", "[!]".red(), input);
+                            should_exit = true;
+                        }
+                    }
+                }
+
+                if should_exit {
+                    anyhow::bail!(
+                        "archive entries checksum doesn't match, maybe the archive is broken?"
+                    );
+                }
+            }
         }
 
         let output = self
@@ -101,7 +130,11 @@ impl Commands {
             .collect::<Result<_, ExtractError>>()
             .context("extraction failed")?;
 
-        pb.finish_with_message("extraction finished".green().to_string());
+        pb.finish_with_message(
+            "extraction finished"
+                .if_supports_color(owo_colors::Stream::Stdout, |t| t.green())
+                .to_string(),
+        );
 
         println!("{} extraction finished", "[+]".green());
         print!("{} writing hashes.json to output folder", "[+]".green());
