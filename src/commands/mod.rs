@@ -4,7 +4,6 @@ use std::{
     path::Path,
 };
 
-use anstream::println;
 use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
 use hvp_archive::{archive::Obscure2NameMap, provider::ArchiveProvider};
@@ -80,7 +79,7 @@ pub enum Game {
     Auto,
     /// Obscure 1 game
     Obscure1,
-    /// Obscure 2 game
+    /// Obscure 2 game (also work with alone in the dark 2008)
     Obscure2,
     /// Final Exam game
     FinalExam,
@@ -108,18 +107,41 @@ pub enum ChecksumValidation {
     Prompt,
 }
 
-fn load_obscure2_name_map() -> Obscure2NameMap {
-    match File::open("obscure2_hashes.txt")
-        .map(BufReader::new)
-        .and_then(|reader| reader.lines().collect::<Result<Vec<_>, _>>())
-    {
-        Ok(names) => Obscure2NameMap::new(names),
-        Err(e) => {
-            println!(
-                "{} failed to load obscure2 name map from 'obscure2_hashes.txt': {e}",
-                "[!]".yellow()
-            );
-            Obscure2NameMap::default()
-        }
+fn load_name_maps() -> std::io::Result<Option<Obscure2NameMap>> {
+    let path = Path::new("hashes");
+
+    println!(
+        "{} loading name maps from {} directory",
+        "[?]".green(),
+        path.display(),
+    );
+
+    if !path.is_dir() {
+        return Ok(None);
     }
+
+    let mut names = Vec::new();
+
+    let dir = path.read_dir()?;
+    for entry in dir {
+        let entry = entry?;
+        let path = entry.path();
+
+        if !path.is_file() || path.extension().unwrap_or_default() != "txt" {
+            continue;
+        }
+
+        println!("{} loading name map from {}", "[?]".green(), path.display(),);
+
+        let file = File::open(path)?;
+        let reader = BufReader::new(file);
+        let lines = reader.lines().collect::<Result<Vec<_>, _>>()?;
+        names.extend(lines);
+    }
+
+    if names.is_empty() {
+        return Ok(None);
+    }
+
+    Ok(Some(Obscure2NameMap::new(names)))
 }

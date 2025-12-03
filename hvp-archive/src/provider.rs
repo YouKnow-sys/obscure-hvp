@@ -91,6 +91,15 @@ impl ArchiveProvider {
         })
     }
 
+    /// returns the game which the archive belongs to
+    pub fn game(&self) -> Game {
+        match self.raw_archive {
+            RawArchive::Obscure1(_) => Game::Obscure1,
+            RawArchive::Obscure2(_) => Game::Obscure2,
+            RawArchive::FinalExam(_) => Game::FinalExam,
+        }
+    }
+
     /// get bytes from the given offset.
     /// ### SAFETY:
     /// because we validate archive before this call, it should be safe to call with any **valid** entry offset and size.

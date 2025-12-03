@@ -8,14 +8,15 @@ use anstream::{print, println};
 use anyhow::Context;
 use clap::{Parser, ValueHint};
 use hvp_archive::{
-    archive::{Archive, Options, entry::DecompressError},
+    Game,
+    archive::{Archive, Obscure2NameMap, Options, entry::DecompressError},
     provider::ArchiveProvider,
 };
 use indicatif::ParallelProgressIterator;
 use owo_colors::OwoColorize;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
-use super::{ChecksumValidation, HASHES_FILE, load_obscure2_name_map, utils};
+use super::{ChecksumValidation, HASHES_FILE, load_name_maps, utils};
 
 #[derive(Parser)]
 #[command(arg_required_else_help = true)]
@@ -34,10 +35,25 @@ pub struct Commands {
 impl Commands {
     /// handle the user command
     pub fn start(self, provider: ArchiveProvider) -> anyhow::Result<()> {
+        let obscure2_names = match provider.game() {
+            Game::Obscure2 => match load_name_maps().context("failed to load name maps")? {
+                Some(names) => names,
+                None => {
+                    println!(
+                        "{} failed to load obscure2 (or alone in the dark 2008) name maps because no hash file was found",
+                        "[!]".yellow()
+                    );
+
+                    Obscure2NameMap::default()
+                }
+            },
+            _ => Obscure2NameMap::default(), // we don't need to load name map for any other game
+        };
+
         let archive = Archive::new_with_options(
             &provider,
             Options {
-                obscure2_names: load_obscure2_name_map(),
+                obscure2_names,
                 rebuild_skip_compression: false,
             },
         );

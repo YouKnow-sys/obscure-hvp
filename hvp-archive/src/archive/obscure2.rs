@@ -343,7 +343,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
     }
 }
 
-/// obscure 2 name map
+/// obscure 2 name map (also used by alone in the dark 2008)
 #[derive(Debug, Default)]
 pub struct Obscure2NameMap(ahash::HashMap<u32, String>);
 

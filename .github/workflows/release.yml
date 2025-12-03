@@ -43,6 +43,6 @@ jobs:
           target: ${{ matrix.target }}
           tar: unix
           zip: windows
-          include: resources/obscure2_hashes.txt
+          include: hashes/
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

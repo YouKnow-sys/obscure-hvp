@@ -22,11 +22,12 @@
 
 ## Supported Games
 
-| Game                     | Status        | Platforms                        |
-|--------------------------|---------------|----------------------------------|
-| Obscure 1                | Supported ✅  | PC, PS2, XBOX                    |
-| Obscure 2                | Supported ✅  | PC, PS2, PSP, Wii                |
-| Final Exam               | Supported ✅  | PC, (and probably PS3, Xbox 360) |
+| Game                     | Status        | Platforms                        | Notes                         |
+|--------------------------|---------------|----------------------------------|-------------------------------|
+| Obscure 1                | Supported ✅  | PC, PS2, XBOX                    |                               |
+| Obscure 2                | Supported ✅  | PC, PS2, PSP, Wii                |                               |
+| Alone in the Dark 2008   | Supported ✅  | PS2, Wii                         | Uses same format as Obscure 2 |
+| Final Exam               | Supported ✅  | PC, (and probably PS3, Xbox 360) |                               |
 
 ## Installation
 
