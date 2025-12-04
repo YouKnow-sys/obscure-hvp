@@ -4,6 +4,7 @@ use std::{
     path::Path,
 };
 
+use anstream::println;
 use anyhow::Context;
 use clap::{Parser, Subcommand, ValueEnum};
 use hvp_archive::{archive::Obscure2NameMap, provider::ArchiveProvider};
