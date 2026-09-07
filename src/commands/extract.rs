@@ -1,4 +1,5 @@
 use std::{
+    collections::BTreeMap,
     fs::File,
     io::{BufWriter, Write},
     path::PathBuf,
@@ -119,7 +120,7 @@ impl Commands {
 
         let pb = utils::progress_bar(files.len() as _);
 
-        let hashes: ahash::HashMap<u32, u32> = files
+        let hashes: BTreeMap<u32, u32> = files
             .into_par_iter()
             .map_with(pb.clone(), |pb, entry| {
                 let path_crc32 = crc32fast::hash(entry.path.display().to_string().as_bytes());
