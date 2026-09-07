@@ -3,8 +3,7 @@
 use binrw::Endian;
 
 pub fn bytes_sum(data: &[u8], endian: Endian) -> i32 {
-    let chunks = data.chunks_exact(4);
-    let remainder = chunks.remainder();
+    let (chunks, remainder) = data.as_chunks::<4>();
 
     let func = match endian {
         Endian::Big => i32::from_be_bytes,
@@ -12,6 +11,7 @@ pub fn bytes_sum(data: &[u8], endian: Endian) -> i32 {
     };
 
     let chunks_sum: i32 = chunks
+        .iter()
         .map(|chunk| func([chunk[0], chunk[1], chunk[2], chunk[3]]))
         .fold(0i32, |acc, val| acc.wrapping_add(val));
 
