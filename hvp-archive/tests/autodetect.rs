@@ -2,12 +2,12 @@ use std::{fs::File, io::Cursor};
 
 use hvp_archive::{Game, try_detect_game};
 
-mod constants;
+mod common;
 
 #[test]
 fn autodetect_obscure1() {
     let obscure1 = {
-        let mut file = File::open(constants::OBSCURE1_HVP).expect("failed to open file");
+        let mut file = File::open(common::OBSCURE1_HVP).expect("failed to open file");
         try_detect_game(&mut file).expect("failed to parse obscure1 archive")
     };
 
@@ -21,7 +21,7 @@ fn autodetect_obscure1() {
 #[test]
 fn autodetect_obscure2() {
     let obscure2 = {
-        let mut file = File::open(constants::OBSCURE2_HVP).expect("failed to open file");
+        let mut file = File::open(common::OBSCURE2_HVP).expect("failed to open file");
         try_detect_game(&mut file).expect("failed to parse obscure2 archive")
     };
 
@@ -35,7 +35,7 @@ fn autodetect_obscure2() {
 #[test]
 fn autodetect_obscure2_wii() {
     let obscure2_wii = {
-        let mut file = File::open(constants::OBSCURE2_WII_HVP).expect("failed to open file");
+        let mut file = File::open(common::OBSCURE2_WII_HVP).expect("failed to open file");
         try_detect_game(&mut file).expect("failed to parse obscure2 wii archive")
     };
 
@@ -49,7 +49,7 @@ fn autodetect_obscure2_wii() {
 #[test]
 fn autodetect_final_exam() {
     let final_exam = {
-        let mut file = File::open(constants::FINAL_EXAM_HVP).expect("failed to open file");
+        let mut file = File::open(common::FINAL_EXAM_HVP).expect("failed to open file");
         try_detect_game(&mut file).expect("failed to parse final exam archive")
     };
 

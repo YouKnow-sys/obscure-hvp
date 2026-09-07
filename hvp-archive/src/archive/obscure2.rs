@@ -296,7 +296,7 @@ impl<W: Write, P: RebuildProgress> Updater<'_, '_, W, P> {
             return Ok(());
         }
 
-        let compressed_bytes = lzo1x::compress(&bytes, lzo1x::CompressLevel::default());
+        let compressed_bytes = lzo1x::compress(&bytes, lzo1x::CompressLevel::new(12));
 
         self.writer.write_all(&compressed_bytes)?;
         self.offset += compressed_bytes.len() as u32;

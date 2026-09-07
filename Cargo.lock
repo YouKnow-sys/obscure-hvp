@@ -408,7 +408,7 @@ dependencies = [
 
 [[package]]
 name = "obscure-hvp"
-version = "1.5.0"
+version = "1.5.1"
 dependencies = [
  "ahash",
  "anstream",
