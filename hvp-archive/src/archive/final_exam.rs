@@ -171,7 +171,7 @@ pub struct Updater<'a, 'n, W: Write, P: RebuildProgress> {
     offset: u32,
     skip_compression: bool,
     names: &'n final_exam::Names,
-    // BigEndian version have 32 padding
+    // BigEndian version have 32 padding (maybe TODO?)
     endian: Endian,
 }
 
